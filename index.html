@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>シフト自動作成</title>
+<style>
+  :root{
+    --bg:#fdf6f9;
+    --card:#ffffff;
+    --accent:#b8a4d4;
+    --accent2:#f7c5d9;
+    --accent3:#aedcd6;
+    --soft:#fbeaf1;
+    --soft2:#eef4fb;
+    --text:#4a4458;
+    --muted:#8a8499;
+    --line:#ece4f0;
+    --short:#f8b4b4;
+    --over:#ffe0a3;
+    --ok:#d9f0db;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+    background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;
+  }
+  header{
+    background:linear-gradient(120deg,var(--accent2),var(--accent));
+    color:#fff;padding:14px 16px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.08);
+  }
+  header h1{margin:0;font-size:18px;font-weight:700;}
+  .month-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .month-bar label{font-size:13px;}
+  .month-bar select,.month-bar input{
+    border:none;border-radius:8px;padding:6px 8px;font-size:14px;color:var(--text);
+  }
+  .period-label{font-size:13px;background:rgba(255,255,255,.25);padding:4px 10px;border-radius:20px;}
+  nav{
+    display:flex;gap:6px;overflow-x:auto;padding:10px 12px;background:var(--card);
+    border-bottom:1px solid var(--line);position:sticky;top:96px;z-index:40;-webkit-overflow-scrolling:touch;
+  }
+  nav button{
+    flex:0 0 auto;border:none;background:var(--soft);color:var(--text);
+    padding:8px 12px;border-radius:20px;font-size:13px;cursor:pointer;white-space:nowrap;
+  }
+  nav button.active{background:var(--accent);color:#fff;font-weight:700;}
+  main{padding:14px;max-width:1100px;margin:0 auto;}
+  section{display:none;}
+  section.active{display:block;}
+  .card{
+    background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;
+    box-shadow:0 2px 6px rgba(150,130,170,.08);
+  }
+  .card h2{margin:0 0 12px;font-size:16px;color:var(--accent);}
+  .card h3{margin:14px 0 8px;font-size:14px;color:var(--text);}
+  button.btn{
+    border:none;border-radius:10px;padding:9px 14px;font-size:14px;cursor:pointer;
+    background:var(--accent);color:#fff;font-weight:600;
+  }
+  button.btn.sec{background:var(--soft);color:var(--text);}
+  button.btn.warn{background:var(--accent2);color:#7a3f55;}
+  button.btn.tiny{padding:4px 8px;font-size:12px;border-radius:8px;}
+  input[type=text],input[type=number],textarea,select{
+    border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:14px;
+    font-family:inherit;color:var(--text);background:#fff;
+  }
+  textarea{width:100%;min-height:120px;resize:vertical;}
+  label.inline{display:inline-flex;align-items:center;gap:4px;margin:2px 8px 2px 0;font-size:13px;}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  th,td{border:1px solid var(--line);padding:6px 8px;text-align:center;}
+  th{background:var(--soft2);font-weight:600;}
+  .scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .shift-matrix td,.shift-matrix th{min-width:62px;white-space:nowrap;}
+  .shift-matrix th.staffcol{position:sticky;left:0;z-index:3;background:var(--soft2);min-width:96px;text-align:left;}
+  .shift-matrix th.wk-sep, .shift-matrix td.wk-sep{ border-left:3px solid #d05a7a; }
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
+  .pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;color:#fff;}
+  .list-item{
+    border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#fff;
+  }
+  .list-item .li-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;}
+  .weekday-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;}
+  .muted{color:var(--muted);font-size:13px;}
+  .small{font-size:12px;}
+  .tag-off{background:#cfe8d4;color:#356b41;padding:1px 6px;border-radius:8px;font-size:11px;}
+  .tag-desired{background:#f6d2e0;color:#9c3f63;padding:1px 6px;border-radius:8px;font-size:11px;}
+  .tag-paid{background:#cfe0f3;color:#3b5d86;padding:1px 6px;border-radius:8px;font-size:11px;}
+  .tag-teiku{background:#e6dcf5;color:#6b4ea0;padding:1px 6px;border-radius:8px;font-size:11px;}
+  .cell-short{background:var(--short)!important;}
+  .cell-over{background:var(--over)!important;}
+  .cell-ok{}
+  .slot-staff{display:inline-block;background:rgba(255,255,255,.7);border-radius:6px;padding:1px 5px;margin:1px;font-size:12px;}
+  .priority-row{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin-bottom:4px;background:var(--soft2);}
+  .priority-row .pname{flex:1;}
+  .dayhdr-sun{color:#d05a7a;}
+  .dayhdr-sat{color:#5a7fd0;}
+  .modal-bg{position:fixed;inset:0;background:rgba(60,50,70,.4);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:20px;overflow:auto;}
+  .modal-bg.show{display:flex;}
+  .modal{background:#fff;border-radius:14px;padding:18px;max-width:520px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.2);}
+  .modal h3{margin-top:0;}
+  .close-x{float:right;cursor:pointer;color:var(--muted);font-size:20px;line-height:1;}
+  .swatch{width:22px;height:22px;border-radius:6px;display:inline-block;vertical-align:middle;border:1px solid rgba(0,0,0,.1);}
+  .help{background:var(--soft);border-radius:10px;padding:10px;font-size:13px;color:var(--muted);margin-bottom:10px;}
+  .badge{display:inline-block;background:var(--accent3);color:#236158;border-radius:8px;padding:1px 7px;font-size:11px;margin-left:6px;}
+  @media(max-width:600px){
+    nav{top:104px;}
+    main{padding:10px;}
+    .card{padding:12px;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>🌸 シフト自動作成</h1>
+  <div class="month-bar">
+    <label>年 <select id="yearSel"></select></label>
+    <label>対象月 <select id="monthSel"></select></label>
+    <span class="period-label" id="periodLabel"></span>
+  </div>
+</header>
+
+<nav id="nav">
+  <button data-tab="courses" class="active">コース</button>
+  <button data-tab="staff">スタッフ</button>
+  <button data-tab="required">必要人数</button>
+  <button data-tab="off">希望休み・年休</button>
+  <button data-tab="shift">シフト作成・表示</button>
+  <button data-tab="export">エクスポート</button>
+</nav>
+
+<main>
+  <!-- COURSES -->
+  <section id="tab-courses" class="active">
+    <div class="card">
+      <h2>コース管理</h2>
+      <div class="help">コース（仕事の役割：レジ・ホール・キッチンなど）を自由に追加・編集・削除できます。色は表示に使われます。この設定は毎月引き継がれます。</div>
+      <div id="courseList"></div>
+      <div class="row">
+        <input type="text" id="newCourseName" placeholder="コース名（例：レジ）">
+        <input type="color" id="newCourseColor" value="#f7c5d9">
+        <button class="btn" id="addCourseBtn">追加</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>曜日ごとの基本コース</h2>
+      <div class="help">各曜日にどのコースが動くかを設定します（基本形）。特定の日だけ変える場合は「シフト作成・表示」タブの「特別変更」を使ってください。</div>
+      <div class="weekday-grid" id="weekdayCourseGrid"></div>
+    </div>
+  </section>
+
+  <!-- STAFF -->
+  <section id="tab-staff">
+    <div class="card">
+      <h2>スタッフ管理</h2>
+      <div class="help">スタッフを追加し、出られない曜日・できるコース・優先順位・週の契約日数・連勤上限を設定します。1つのコースしかできない人は「専任スタッフ」として優先的にそのコースに入ります。設定は毎月引き継がれます。</div>
+      <div id="staffList"></div>
+      <div class="row">
+        <input type="text" id="newStaffName" placeholder="スタッフ名">
+        <button class="btn" id="addStaffBtn">追加</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- REQUIRED -->
+  <section id="tab-required">
+    <div class="card">
+      <h2>必要人数（曜日 × コース）</h2>
+      <div class="help">各曜日・各コースに何人必要かを入れます。空欄や0は「不要」です。毎月引き継がれます。</div>
+      <div class="scroll-x" id="requiredTableWrap"></div>
+    </div>
+  </section>
+
+  <!-- OFF -->
+  <section id="tab-off">
+    <div class="card">
+      <h2>記入用カレンダーを作る（グループLINE用）</h2>
+      <div class="help">この月の日付が並んだ「記入用カレンダー」を作ります。グループLINEに送って、各自に<b>「休みたい日の横に自分の名前」</b>を書いて返信してもらいます。返ってきた返信を、下の「希望休み（貼り付け取り込み）」にまとめて貼れば反映できます。</div>
+      <div class="row">
+        <button class="btn" id="makeBlankCalBtn">記入用カレンダーを作成</button>
+        <button class="btn sec" id="copyBlankCalBtn">コピー</button>
+        <button class="btn sec" id="shareBlankCalBtn">LINEで送る</button>
+      </div>
+      <textarea id="blankCalArea" placeholder="「記入用カレンダーを作成」を押すと、ここに表示されます" style="margin-top:8px"></textarea>
+      <div class="muted small">スマホは「LINEで送る」で共有メニューからLINEを選べます。PCは「コピー」してLINEに貼り付けてください。</div>
+    </div>
+    <div class="card">
+      <h2>希望休み（貼り付け取り込み）</h2>
+      <div class="help">LINEなどからコピーした希望休みのテキストを貼り付けて「取り込む」を押すと、自動で反映します。<br>
+      対応例：<span class="small">5/18(月) 田中 ／ 5/18 田中 山田（1日に複数人OK）／ 田中 5/28 ／ 山田：5/29, 5/30</span></div>
+      <textarea id="offPasteArea" placeholder="ここに貼り付け（記入用カレンダーの返信をまとめて貼ってOK）"></textarea>
+      <div class="row" style="margin-top:8px;">
+        <button class="btn" id="parseOffBtn">取り込む</button>
+        <span class="muted small">※登録済みスタッフ名と一致する行のみ反映。名前の無い空欄の行は無視します。年は対象期間に合わせて自動判定します。</span>
+      </div>
+      <div id="unmatchedBox"></div>
+    </div>
+    <div class="card">
+      <h2>希望休み 一覧（この月）</h2>
+      <div class="row">
+        <select id="manualOffStaff"></select>
+        <input type="text" id="manualOffDate" placeholder="日付 例 5/28">
+        <button class="btn sec" id="addManualOffBtn">追加</button>
+      </div>
+      <div id="desiredOffList"></div>
+    </div>
+    <div class="card">
+      <h2>年休（この月）</h2>
+      <div class="help">年休もシフトには入れません（希望休みと同じ扱い）。表では別表示になります。</div>
+      <div class="row">
+        <select id="paidStaff"></select>
+        <input type="text" id="paidDate" placeholder="日付 例 5/29">
+        <button class="btn sec" id="addPaidBtn">追加</button>
+      </div>
+      <div id="paidLeaveList"></div>
+    </div>
+  </section>
+
+  <!-- SHIFT -->
+  <section id="tab-shift">
+    <div class="card">
+      <h2>シフト作成</h2>
+      <div class="row">
+        <button class="btn" id="autoGenBtn">自動でシフトを作る</button>
+        <button class="btn warn" id="clearShiftBtn">この月のシフトを消す</button>
+      </div>
+      <div class="muted small">※自動作成は絶対ルール（希望休み・年休・絶対NGの曜日・できないコース・連勤上限）を必ず守ります。その範囲で各スタッフの「週の契約日数」を必ず満たすように出します（必要人数を超える日は「過剰」と表示）。条件的に満たせない枠・日数は無理に埋めず残します。</div>
+    </div>
+    <div class="card">
+      <h2>特別変更（特定日のコース変更）</h2>
+      <div class="help">「第3土曜は休業」など、特定日だけコース構成を変える場合に使います。チェックしたコースだけがその日に動きます（全部外すと休業）。この月だけに適用されます。</div>
+      <div class="row">
+        <input type="text" id="irrDate" placeholder="日付 例 6/6">
+        <button class="btn sec" id="editIrrBtn">この日を編集</button>
+      </div>
+      <div id="irrList"></div>
+    </div>
+    <div class="card">
+      <h2>結果表示・調整</h2>
+      <div class="muted small">縦＝スタッフ、横＝日付、マス＝その日の担当コースです。マスをクリックすると担当コース（または休み）を変更できます。日付の右肩の「*」は特別変更の日です。</div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="shareImgBtn">シフト表を画像でLINE送信／保存</button>
+      </div>
+      <div class="muted small">スマホは「送る」を押すと共有メニューからLINEを選べます。パソコンは画像が保存されるので、LINEに写真として添付してください。</div>
+      <div class="scroll-x" id="shiftGridWrap" style="margin-top:10px;"></div>
+      <div id="shiftIssues"></div>
+    </div>
+  </section>
+
+  <!-- EXPORT -->
+  <section id="tab-export">
+    <div class="card">
+      <h2>エクスポート（シフト表）</h2>
+      <div class="help">シフト表をExcelで開けるCSVファイルとしてダウンロードします。○=休み、◎=希望休み、年休=年休、定休=毎月の固定休み。</div>
+      <button class="btn" id="csvBtn">Excelダウンロード（CSV）</button>
+    </div>
+    <div class="card">
+      <h2>データのバックアップ（持ち運び）</h2>
+      <div class="help">アプリの全データ（コース・スタッフ・必要人数などの基本設定と、各月の希望休み・年休・確定シフト・特別変更。過去の月もすべて）を1つのファイルにまとめて保存／読み込みできます。<br>
+      自宅PCで「書き出し」→そのファイルをスマホや別PCに移して「読み込み」すると、同じデータを使えます。<br>
+      <span class="small">※これはアプリ全体のバックアップ用です（上のシフト表CSVとは別物）。</span></div>
+      <div class="row">
+        <button class="btn" id="exportDataBtn">データを書き出す</button>
+        <button class="btn sec" id="importDataBtn">データを読み込む</button>
+        <input type="file" id="importFileInput" accept="application/json,.json" style="display:none">
+      </div>
+      <div class="muted small">「読み込む」と、今このブラウザにあるデータは読み込んだ内容で上書きされます。</div>
+    </div>
+  </section>
+</main>
+
+<!-- generic modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<script>
+/* ===================== STORAGE ===================== */
+const LS_BASE="shiftapp_base_v1";
+const LS_MONTH_PREFIX="shiftapp_month_";
+
+// localStorageが使えない環境（Safariでファイルを直接開いた場合など）でも
+// その場では動くように、メモリ上の控えにフォールバックする
+const memStore={};
+let storageOK=true;
+function lsGet(k){
+  try{ return localStorage.getItem(k); }
+  catch(e){ storageOK=false; return Object.prototype.hasOwnProperty.call(memStore,k)?memStore[k]:null; }
+}
+function lsSet(k,v){
+  try{ localStorage.setItem(k,v); }
+  catch(e){ storageOK=false; memStore[k]=v; showStorageWarning(); }
+}
+function lsRemove(k){
+  try{ localStorage.removeItem(k); }catch(e){ delete memStore[k]; }
+}
+function showStorageWarning(){
+  if(document.getElementById("storageWarn")) return;
+  const div=document.createElement("div");
+  div.id="storageWarn";
+  div.style.cssText="background:#ffe0a3;color:#7a4a00;padding:10px 14px;font-size:13px;line-height:1.5;border-bottom:1px solid #e6c275;";
+  div.innerHTML="⚠ このブラウザでは入力内容を<b>保存できません</b>（閉じると消えます）。"+
+    "保存して使うには、このファイルを <b>Google Chrome</b> で開いてください。"+
+    "（Safariでファイルを直接開くと保存できない仕様のためです）";
+  document.body.insertBefore(div, document.body.firstChild);
+}
+
+function defaultBase(){
+  return {
+    courses:[],
+    weekdayCourses:{0:[],1:[],2:[],3:[],4:[],5:[],6:[]},
+    staff:[],
+    requiredStaff:{0:{},1:{},2:{},3:{},4:{},5:{},6:{}}
+  };
+}
+function loadBase(){
+  try{
+    const raw=lsGet(LS_BASE);
+    if(!raw) return defaultBase();
+    const b=JSON.parse(raw);
+    // ensure shape
+    const d=defaultBase();
+    b.courses=b.courses||[];
+    b.staff=b.staff||[];
+    b.weekdayCourses=Object.assign({},d.weekdayCourses,b.weekdayCourses||{});
+    b.requiredStaff=Object.assign({},d.requiredStaff,b.requiredStaff||{});
+    return b;
+  }catch(e){return defaultBase();}
+}
+function saveBase(){ lsSet(LS_BASE,JSON.stringify(base)); }
+
+function defaultMonth(){
+  return { desiredOff:[], paidLeave:[], irregular:{}, shift:{} };
+}
+function monthKey(y,m){ return y+"-"+String(m).padStart(2,"0"); }
+function loadMonth(key){
+  try{
+    const raw=lsGet(LS_MONTH_PREFIX+key);
+    if(!raw) return defaultMonth();
+    const m=JSON.parse(raw);
+    return Object.assign(defaultMonth(),m);
+  }catch(e){return defaultMonth();}
+}
+function saveMonth(){ lsSet(LS_MONTH_PREFIX+curKey,JSON.stringify(month)); }
+function loadMonthByKey(key){ // for cross-month consecutive calc
+  try{
+    const raw=lsGet(LS_MONTH_PREFIX+key);
+    if(!raw) return null;
+    return Object.assign(defaultMonth(),JSON.parse(raw));
+  }catch(e){return null;}
+}
+
+/* ===================== STATE ===================== */
+let base=loadBase();
+let curYear, curMonth, curKey, month;
+
+/* ===================== DATE HELPERS ===================== */
+const WD=["日","月","火","水","木","金","土"];
+function pad(n){return String(n).padStart(2,"0");}
+function dstr(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function parseDstr(s){ const p=s.split("-"); return new Date(+p[0],+p[1]-1,+p[2]); }
+function periodRange(year,month){ // month 1-based
+  const start=new Date(year,month-2,16);
+  const end=new Date(year,month-1,15);
+  return {start,end};
+}
+function periodDates(year,month){
+  const {start,end}=periodRange(year,month);
+  const arr=[];
+  let d=new Date(start);
+  while(d<=end){ arr.push(new Date(d)); d.setDate(d.getDate()+1); }
+  return arr;
+}
+function weekKey(d){ // Sunday-start week identifier
+  const x=new Date(d); x.setDate(x.getDate()-x.getDay());
+  return dstr(x);
+}
+function shortDateLabel(d){ return (d.getMonth()+1)+"/"+d.getDate()+"("+WD[d.getDay()]+")"; }
+
+/* ===================== ID ===================== */
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+/* ===================== INIT MONTH PICKER ===================== */
+function initMonthPicker(){
+  const ys=document.getElementById("yearSel");
+  const ms=document.getElementById("monthSel");
+  const now=new Date();
+  const baseY=now.getFullYear();
+  ys.innerHTML="";
+  for(let y=baseY-1;y<=baseY+2;y++){
+    const o=document.createElement("option"); o.value=y; o.textContent=y+"年"; ys.appendChild(o);
+  }
+  ms.innerHTML="";
+  for(let m=1;m<=12;m++){
+    const o=document.createElement("option"); o.value=m; o.textContent=m+"月"; ms.appendChild(o);
+  }
+  // default: pick month based on today (target month = month of the 15th boundary)
+  // If today >15, target is next month; else this month.
+  let ty=now.getFullYear(), tm=now.getMonth()+1;
+  if(now.getDate()>15){ tm++; if(tm>12){tm=1;ty++;} }
+  ys.value=ty; ms.value=tm;
+  ys.addEventListener("change",onMonthChange);
+  ms.addEventListener("change",onMonthChange);
+}
+function onMonthChange(){
+  curYear=+document.getElementById("yearSel").value;
+  curMonth=+document.getElementById("monthSel").value;
+  curKey=monthKey(curYear,curMonth);
+  month=loadMonth(curKey);
+  const {start,end}=periodRange(curYear,curMonth);
+  document.getElementById("periodLabel").textContent=
+    (start.getMonth()+1)+"/"+start.getDate()+" 〜 "+(end.getMonth()+1)+"/"+end.getDate()+" （"+curMonth+"月分）";
+  renderAll();
+}
+
+/* ===================== TABS ===================== */
+document.getElementById("nav").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-tab]");
+  if(!b) return;
+  document.querySelectorAll("#nav button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  const tab=b.dataset.tab;
+  document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
+  document.getElementById("tab-"+tab).classList.add("active");
+});
+
+/* ===================== COURSES ===================== */
+function courseById(id){ return base.courses.find(c=>c.id===id); }
+function courseName(id){ const c=courseById(id); return c?c.name:"?"; }
+function courseColor(id){ const c=courseById(id); return c?c.color:"#ccc"; }
+// コース側の「入れたい人の順番」での順位（高いほど優先。未設定は0）
+function courseStaffRank(cid, sid){
+  const c=courseById(cid); const list=(c&&c.staffPriority)||[];
+  const idx=list.indexOf(sid); return idx<0?0:(list.length-idx);
+}
+
+function renderCourses(){
+  const wrap=document.getElementById("courseList");
+  wrap.innerHTML="";
+  if(base.courses.length===0){ wrap.innerHTML='<div class="muted small">まだコースがありません。</div>'; }
+  base.courses.forEach(c=>{
+    const div=document.createElement("div");
+    div.className="list-item";
+    div.innerHTML=`<div class="li-head">
+      <span><span class="swatch" style="background:${c.color}"></span> <b>${esc(c.name)}</b></span>
+      <span>
+        <button class="btn sec tiny" data-act="editC" data-id="${c.id}">編集</button>
+        <button class="btn warn tiny" data-act="delC" data-id="${c.id}">削除</button>
+      </span></div>`;
+    wrap.appendChild(div);
+  });
+  wrap.querySelectorAll("button[data-act]").forEach(btn=>{
+    btn.onclick=()=>{
+      const id=btn.dataset.id;
+      if(btn.dataset.act==="delC") delCourse(id);
+      else editCourse(id);
+    };
+  });
+}
+function addCourse(){
+  const name=document.getElementById("newCourseName").value.trim();
+  const color=document.getElementById("newCourseColor").value;
+  if(!name){ alert("コース名を入れてください"); return; }
+  base.courses.push({id:uid(),name,color});
+  document.getElementById("newCourseName").value="";
+  saveBase(); renderAll();
+}
+function editCourse(id){
+  const c=courseById(id);
+  // 専任スタッフ（このコースだけできる人）＝自動で最優先
+  const specs=base.staff.filter(s=>(s.canDoCourses||[]).length===1 && s.canDoCourses[0]===c.id);
+  const specNames=specs.map(s=>esc(s.name)).join("・")||"なし";
+  openModal(`<h3>コース編集</h3>
+    <div class="row"><label>名前 <input type="text" id="ecName" value="${esc(c.name)}" style="flex:1"></label></div>
+    <div class="row"><label>色 <input type="color" id="ecColor" value="${c.color}"></label></div>
+    <h3>このコースに入れる人の優先順位</h3>
+    <div class="muted small">専任スタッフ（このコースだけできる人）は自動で最優先です。<br>専任が休みのときなどに、下の<b>兼任スタッフ（複数コースできる人）</b>を上から順に補充します。▲▼で並べ替えてください。</div>
+    <div class="small" style="margin:6px 0"><b>専任（自動で最優先）:</b> ${specNames}</div>
+    <h3 style="font-size:13px">兼任スタッフの順番</h3>
+    <div id="ecStaffPrio"></div>
+    <h3>曜日ごとの固定担当</h3>
+    <div class="muted small">特定の曜日に、このコースへ<b>必ず入れる人</b>を指定できます（例：毎週月曜のレジは田中）。固定の人が休み・絶対NG・連勤上限などで入れないときは、上の「コースに入れる人の優先順位」で兼任スタッフが代わりに入ります。</div>
+    <div id="ecFixedList" style="margin:6px 0"></div>
+    <div class="row">
+      <select id="ecFixWd"></select>
+      <select id="ecFixStaff"></select>
+      <button class="btn sec" id="ecFixAdd">追加</button>
+    </div>
+    <div class="row"><button class="btn" id="ecSave">保存</button></div>`);
+
+  // 兼任候補（このコースができ、かつ複数コースできる人）を、保存済みの順番に合わせて並べる
+  let prio=(c.staffPriority||[]).filter(sid=>{ const s=staffById(sid); return s && (s.canDoCourses||[]).includes(c.id) && (s.canDoCourses||[]).length>1; });
+  base.staff.forEach(s=>{ if((s.canDoCourses||[]).includes(c.id) && (s.canDoCourses||[]).length>1 && !prio.includes(s.id)) prio.push(s.id); });
+
+  function renderCPrio(){
+    const box=document.getElementById("ecStaffPrio");
+    box.innerHTML="";
+    if(prio.length===0){ box.innerHTML='<span class="muted small">このコースができる兼任スタッフがいません。</span>'; return; }
+    prio.forEach((sid,idx)=>{
+      const s=staffById(sid);
+      const row=document.createElement("div");
+      row.className="priority-row";
+      row.innerHTML=`<span class="pname">${idx+1}. ${esc(s?s.name:"?")}</span>
+        <button class="btn sec tiny" data-up="${idx}">▲</button>
+        <button class="btn sec tiny" data-down="${idx}">▼</button>`;
+      box.appendChild(row);
+    });
+    box.querySelectorAll("button[data-up]").forEach(b=>b.onclick=()=>{const i=+b.dataset.up;if(i>0){[prio[i-1],prio[i]]=[prio[i],prio[i-1]];renderCPrio();}});
+    box.querySelectorAll("button[data-down]").forEach(b=>b.onclick=()=>{const i=+b.dataset.down;if(i<prio.length-1){[prio[i+1],prio[i]]=[prio[i],prio[i+1]];renderCPrio();}});
+  }
+  renderCPrio();
+
+  // 曜日ごとの固定担当（作業用コピー）
+  let fixed={}; for(let w=0;w<7;w++) fixed[w]=((c.fixedByWeekday&&c.fixedByWeekday[w])||[]).filter(sid=>{
+    const s=staffById(sid); return s && (s.canDoCourses||[]).includes(c.id);
+  });
+  const fixWdSel=document.getElementById("ecFixWd");
+  for(let w=0;w<7;w++){ const o=document.createElement("option"); o.value=w; o.textContent=WD[w]+"曜"; fixWdSel.appendChild(o); }
+  function refillFixStaff(){
+    const ss=document.getElementById("ecFixStaff"); ss.innerHTML="";
+    const w=+fixWdSel.value;
+    base.staff.forEach(s=>{
+      if(!(s.canDoCourses||[]).includes(c.id)) return;       // このコースができる人のみ
+      if((fixed[w]||[]).includes(s.id)) return;              // 既に固定済みは除く
+      const o=document.createElement("option"); o.value=s.id; o.textContent=s.name; ss.appendChild(o);
+    });
+    if(ss.options.length===0){ const o=document.createElement("option"); o.value=""; o.textContent="（追加できる人がいません）"; ss.appendChild(o); }
+  }
+  fixWdSel.onchange=refillFixStaff; refillFixStaff();
+  function renderFixed(){
+    const box=document.getElementById("ecFixedList"); box.innerHTML="";
+    let any=false;
+    for(let w=0;w<7;w++){
+      if(!fixed[w] || fixed[w].length===0) continue;
+      any=true;
+      const line=document.createElement("div");
+      line.style.cssText="margin:3px 0";
+      let html=`<b>${WD[w]}曜：</b>`;
+      fixed[w].forEach((sid,idx)=>{
+        const s=staffById(sid);
+        html+=`<span class="tag-teiku" style="display:inline-flex;align-items:center;gap:6px;margin:2px 5px 2px 0;padding:3px 8px;font-size:12px;">${esc(s?s.name:"?")} <span data-rm-w="${w}" data-rm-i="${idx}" style="cursor:pointer;font-weight:700">×</span></span>`;
+      });
+      line.innerHTML=html;
+      box.appendChild(line);
+    }
+    if(!any){ box.innerHTML='<span class="muted small">なし</span>'; return; }
+    box.querySelectorAll("span[data-rm-w]").forEach(x=>x.onclick=()=>{
+      const w=+x.dataset.rmW, i=+x.dataset.rmI;
+      fixed[w].splice(i,1); renderFixed(); refillFixStaff();
+    });
+  }
+  renderFixed();
+  document.getElementById("ecFixAdd").onclick=()=>{
+    const w=+fixWdSel.value;
+    const sid=document.getElementById("ecFixStaff").value;
+    if(!sid) return;
+    fixed[w]=fixed[w]||[];
+    if(!fixed[w].includes(sid)) fixed[w].push(sid);
+    renderFixed(); refillFixStaff();
+  };
+
+  document.getElementById("ecSave").onclick=()=>{
+    c.name=document.getElementById("ecName").value.trim()||c.name;
+    c.color=document.getElementById("ecColor").value;
+    c.staffPriority=prio.slice();
+    const out={}; for(let w=0;w<7;w++) if(fixed[w]&&fixed[w].length) out[w]=fixed[w].slice();
+    c.fixedByWeekday=out;
+    saveBase(); closeModal(); renderAll();
+  };
+}
+function delCourse(id){
+  if(!confirm("このコースを削除しますか？関連設定も削除されます。")) return;
+  base.courses=base.courses.filter(c=>c.id!==id);
+  for(let w=0;w<7;w++){
+    base.weekdayCourses[w]=(base.weekdayCourses[w]||[]).filter(x=>x!==id);
+    if(base.requiredStaff[w]) delete base.requiredStaff[w][id];
+  }
+  base.staff.forEach(s=>{
+    s.canDoCourses=(s.canDoCourses||[]).filter(x=>x!==id);
+    s.coursePriority=(s.coursePriority||[]).filter(x=>x!==id);
+  });
+  saveBase(); renderAll();
+}
+
+function renderWeekdayCourses(){
+  const wrap=document.getElementById("weekdayCourseGrid");
+  wrap.innerHTML="";
+  for(let w=0;w<7;w++){
+    const box=document.createElement("div");
+    box.className="list-item";
+    let html=`<b>${WD[w]}曜</b><div style="margin-top:6px">`;
+    if(base.courses.length===0) html+='<span class="muted small">コース未登録</span>';
+    base.courses.forEach(c=>{
+      const on=(base.weekdayCourses[w]||[]).includes(c.id);
+      html+=`<label class="inline"><input type="checkbox" data-w="${w}" data-c="${c.id}" ${on?"checked":""}> ${esc(c.name)}</label>`;
+    });
+    html+="</div>";
+    box.innerHTML=html;
+    wrap.appendChild(box);
+  }
+  wrap.querySelectorAll("input[type=checkbox]").forEach(cb=>{
+    cb.onchange=()=>{
+      const w=+cb.dataset.w, c=cb.dataset.c;
+      base.weekdayCourses[w]=base.weekdayCourses[w]||[];
+      if(cb.checked){ if(!base.weekdayCourses[w].includes(c)) base.weekdayCourses[w].push(c); }
+      else base.weekdayCourses[w]=base.weekdayCourses[w].filter(x=>x!==c);
+      saveBase();
+    };
+  });
+}
+
+/* ===================== STAFF ===================== */
+function staffById(id){ return base.staff.find(s=>s.id===id); }
+function isSpecialist(s){ return (s.canDoCourses||[]).length===1; }
+
+/* ---- 毎月の定休（固定休み） ---- */
+const NTH_LABEL={every:"毎週","1":"第1","2":"第2","3":"第3","4":"第4","5":"第5",last:"最終"};
+function daysInMonthOf(d){ return new Date(d.getFullYear(), d.getMonth()+1, 0).getDate(); }
+// その日付が、定休ルールに当てはまるか
+function matchesRecurringOff(s, d){
+  const rules=s&&s.recurringOff; if(!rules||!rules.length) return false;
+  const wd=d.getDay(), day=d.getDate();
+  const nth=Math.floor((day-1)/7)+1;                  // その暦月で何回目の曜日か
+  const isLast=(day+7)>daysInMonthOf(d);              // その暦月で最後の同曜日か
+  return rules.some(r=>{
+    if(r.type==="day") return r.day===day;
+    if(r.type==="weekday"){
+      if(r.weekday!==wd) return false;
+      if(r.nth==="every") return true;
+      if(r.nth==="last") return isLast;
+      return String(r.nth)===String(nth);
+    }
+    return false;
+  });
+}
+function recurringRuleLabel(r){
+  if(r.type==="day") return "毎月"+r.day+"日";
+  if(r.type==="weekday") return (NTH_LABEL[r.nth]||"")+WD[r.weekday]+"曜";
+  return "";
+}
+// この月の期間内で、各スタッフの定休に当たる日付一覧 [{staffId,dateStr}]
+function recurringOffForMonth(){
+  const out=[];
+  const dates=periodDates(curYear,curMonth);
+  base.staff.forEach(s=>{
+    dates.forEach(d=>{ if(matchesRecurringOff(s,d)) out.push({staffId:s.id,dateStr:dstr(d)}); });
+  });
+  return out;
+}
+
+function renderStaff(){
+  const wrap=document.getElementById("staffList");
+  wrap.innerHTML="";
+  if(base.staff.length===0){ wrap.innerHTML='<div class="muted small">まだスタッフがいません。</div>'; }
+  base.staff.forEach(s=>{
+    const can=(s.canDoCourses||[]).map(courseName).join("・")||"—";
+    const hardDays=(s.unavailableDays||[]).map((b,i)=>b?WD[i]:null).filter(Boolean).join("・")||"なし";
+    const softDays=(s.softUnavailableDays||[]).map((b,i)=>b?WD[i]:null).filter(Boolean).join("・")||"なし";
+    const spec=isSpecialist(s)?'<span class="badge">専任</span>':'';
+    const div=document.createElement("div");
+    div.className="list-item";
+    div.innerHTML=`<div class="li-head">
+        <span><b>${esc(s.name)}</b>${spec}</span>
+        <span>
+          <button class="btn sec tiny" data-act="editS" data-id="${s.id}">編集</button>
+          <button class="btn warn tiny" data-act="delS" data-id="${s.id}">削除</button>
+        </span></div>
+      <div class="small muted" style="margin-top:4px">
+        できる: ${esc(can)}<br>
+        絶対NGの曜日: ${esc(hardDays)}　/　基本NGの曜日: ${esc(softDays)}<br>
+        週の契約日数: ${s.maxDaysPerWeek?s.maxDaysPerWeek+"日":"指定なし"}　連勤上限: ${s.maxConsecutive||4}日${(s.recurringOff&&s.recurringOff.length)?'<br>定休: '+esc(s.recurringOff.map(recurringRuleLabel).join("・")):''}
+      </div>`;
+    wrap.appendChild(div);
+  });
+  wrap.querySelectorAll("button[data-act]").forEach(btn=>{
+    btn.onclick=()=>{
+      if(btn.dataset.act==="delS") delStaff(btn.dataset.id);
+      else editStaff(btn.dataset.id);
+    };
+  });
+}
+function addStaff(){
+  const name=document.getElementById("newStaffName").value.trim();
+  if(!name){ alert("名前を入れてください"); return; }
+  base.staff.push({
+    id:uid(),name,
+    unavailableDays:[false,false,false,false,false,false,false],
+    softUnavailableDays:[false,false,false,false,false,false,false],
+    canDoCourses:[], coursePriority:[], recurringOff:[],
+    maxDaysPerWeek:5, maxConsecutive:4
+  });
+  document.getElementById("newStaffName").value="";
+  saveBase(); renderStaff(); refreshStaffSelects();
+}
+function delStaff(id){
+  if(!confirm("このスタッフを削除しますか？")) return;
+  base.staff=base.staff.filter(s=>s.id!==id);
+  base.courses.forEach(c=>{
+    if(c.staffPriority) c.staffPriority=c.staffPriority.filter(x=>x!==id);
+    if(c.fixedByWeekday){ for(const w in c.fixedByWeekday) c.fixedByWeekday[w]=(c.fixedByWeekday[w]||[]).filter(x=>x!==id); }
+  });
+  saveBase(); renderStaff(); refreshStaffSelects();
+}
+function editStaff(id){
+  const s=staffById(id);
+  let canHtml="";
+  base.courses.forEach(c=>{
+    const on=(s.canDoCourses||[]).includes(c.id);
+    canHtml+=`<label class="inline"><input type="checkbox" class="esCan" data-c="${c.id}" ${on?"checked":""}> ${esc(c.name)}</label>`;
+  });
+  if(base.courses.length===0) canHtml='<span class="muted small">先にコースを登録してください</span>';
+  let wdHtml='<div class="weekday-grid">';
+  for(let w=0;w<7;w++){
+    const hard=(s.unavailableDays||[])[w];
+    const soft=(s.softUnavailableDays||[])[w];
+    const val=hard?'hard':(soft?'soft':'ok');
+    wdHtml+=`<div class="list-item" style="padding:6px 8px;margin-bottom:0">
+      <div class="small" style="margin-bottom:3px"><b>${WD[w]}曜</b></div>
+      <select class="esWd" data-w="${w}" style="width:100%">
+        <option value="ok" ${val==='ok'?'selected':''}>出られる</option>
+        <option value="soft" ${val==='soft'?'selected':''}>基本NG</option>
+        <option value="hard" ${val==='hard'?'selected':''}>絶対NG</option>
+      </select></div>`;
+  }
+  wdHtml+='</div>';
+  let recWdOpts=""; for(let w=0;w<7;w++) recWdOpts+=`<option value="${w}">${WD[w]}曜</option>`;
+  let recDayOpts=""; for(let dd=1;dd<=31;dd++) recDayOpts+=`<option value="${dd}">${dd}日</option>`;
+  openModal(`<h3>スタッフ編集</h3>
+    <div class="row"><label>名前 <input type="text" id="esName" value="${esc(s.name)}"></label></div>
+    <h3>出られない曜日</h3>
+    <div class="muted small">曜日ごとに選びます。<b>絶対NG</b>＝その曜日は一切入れない（自動・手動とも不可）。<b>基本NG</b>＝ふだんは入れないが、人手不足のときだけ自動で入る／手動でも入れられる。</div>
+    <div>${wdHtml}</div>
+    <h3>できるコース</h3>
+    <div>${canHtml}</div>
+    <h3>コース優先順位（高い順）</h3>
+    <div id="esPriority"></div>
+    <h3>契約日数・連勤上限</h3>
+    <div class="muted small">週の契約日数＝毎週この日数だけ必ず出します（必要人数より多くてもOK）。0にすると「指定なし（足りない所を埋める調整役）」になります。</div>
+    <div class="row" style="margin-top:6px">
+      <label>週の契約日数 <input type="number" id="esWeek" min="0" max="7" value="${s.maxDaysPerWeek||0}" style="width:70px"></label>
+      <label>連勤上限 <input type="number" id="esConsec" min="1" max="14" value="${s.maxConsecutive||4}" style="width:70px"></label>
+    </div>
+    <h3>毎月の定休（固定休み）</h3>
+    <div class="muted small">毎月この曜日・日にちを自動で希望休みにします（例：第1月曜、毎月15日）。「第N曜日」は、その日が属する月の第N週で数えます。</div>
+    <div id="esRecurList" style="margin:6px 0"></div>
+    <div class="row">
+      <select id="esRecKind">
+        <option value="weekday">曜日で指定</option>
+        <option value="day">日にちで指定</option>
+      </select>
+      <span id="esRecWeekday">
+        <select id="esRecNth">
+          <option value="every">毎週</option><option value="1">第1</option><option value="2">第2</option>
+          <option value="3">第3</option><option value="4">第4</option><option value="5">第5</option><option value="last">最終</option>
+        </select>
+        <select id="esRecWd">${recWdOpts}</select>
+      </span>
+      <span id="esRecDayWrap" style="display:none"><select id="esRecDay">${recDayOpts}</select></span>
+      <button class="btn sec" id="esRecAdd">追加</button>
+    </div>
+    <div class="row"><button class="btn" id="esSave">保存</button></div>`);
+
+  // working copy of priority
+  let prio=(s.coursePriority||[]).filter(id=>(s.canDoCourses||[]).includes(id));
+  (s.canDoCourses||[]).forEach(cid=>{ if(!prio.includes(cid)) prio.push(cid); });
+
+  function renderPrio(){
+    const box=document.getElementById("esPriority");
+    box.innerHTML="";
+    if(prio.length===0){ box.innerHTML='<span class="muted small">できるコースを選ぶと表示されます</span>'; return; }
+    prio.forEach((cid,idx)=>{
+      const row=document.createElement("div");
+      row.className="priority-row";
+      row.innerHTML=`<span class="pname"><span class="swatch" style="background:${courseColor(cid)}"></span> ${esc(courseName(cid))}</span>
+        <button class="btn sec tiny" data-up="${idx}">▲</button>
+        <button class="btn sec tiny" data-down="${idx}">▼</button>`;
+      box.appendChild(row);
+    });
+    box.querySelectorAll("button[data-up]").forEach(b=>b.onclick=()=>{const i=+b.dataset.up;if(i>0){[prio[i-1],prio[i]]=[prio[i],prio[i-1]];renderPrio();}});
+    box.querySelectorAll("button[data-down]").forEach(b=>b.onclick=()=>{const i=+b.dataset.down;if(i<prio.length-1){[prio[i+1],prio[i]]=[prio[i],prio[i+1]];renderPrio();}});
+  }
+  renderPrio();
+
+  // when can-do changes, update prio list
+  document.querySelectorAll(".esCan").forEach(cb=>{
+    cb.onchange=()=>{
+      const cid=cb.dataset.c;
+      if(cb.checked){ if(!prio.includes(cid)) prio.push(cid); }
+      else prio=prio.filter(x=>x!==cid);
+      renderPrio();
+    };
+  });
+
+  // 毎月の定休（作業用コピー）
+  let recur=(s.recurringOff||[]).map(r=>Object.assign({},r));
+  function renderRecur(){
+    const box=document.getElementById("esRecurList");
+    box.innerHTML="";
+    if(recur.length===0){ box.innerHTML='<span class="muted small">なし</span>'; return; }
+    recur.forEach((r,idx)=>{
+      const chip=document.createElement("span");
+      chip.className="tag-teiku";
+      chip.style.cssText="display:inline-flex;align-items:center;gap:6px;margin:2px 6px 2px 0;padding:3px 9px;font-size:12px;";
+      chip.innerHTML=`${esc(recurringRuleLabel(r))} <span data-rm="${idx}" style="cursor:pointer;font-weight:700">×</span>`;
+      box.appendChild(chip);
+    });
+    box.querySelectorAll("span[data-rm]").forEach(x=>x.onclick=()=>{ recur.splice(+x.dataset.rm,1); renderRecur(); });
+  }
+  renderRecur();
+  const recKind=document.getElementById("esRecKind");
+  function toggleRecKind(){
+    document.getElementById("esRecWeekday").style.display = recKind.value==="weekday"?"":"none";
+    document.getElementById("esRecDayWrap").style.display = recKind.value==="day"?"":"none";
+  }
+  recKind.onchange=toggleRecKind; toggleRecKind();
+  document.getElementById("esRecAdd").onclick=()=>{
+    if(recKind.value==="weekday"){
+      const nth=document.getElementById("esRecNth").value;
+      const wd=+document.getElementById("esRecWd").value;
+      if(!recur.some(r=>r.type==="weekday"&&String(r.nth)===String(nth)&&r.weekday===wd)) recur.push({type:"weekday",nth:nth,weekday:wd});
+    }else{
+      const day=+document.getElementById("esRecDay").value;
+      if(!recur.some(r=>r.type==="day"&&r.day===day)) recur.push({type:"day",day:day});
+    }
+    renderRecur();
+  };
+
+  document.getElementById("esSave").onclick=()=>{
+    s.name=document.getElementById("esName").value.trim()||s.name;
+    s.unavailableDays=[false,false,false,false,false,false,false];
+    s.softUnavailableDays=[false,false,false,false,false,false,false];
+    document.querySelectorAll(".esWd").forEach(sel=>{
+      const w=+sel.dataset.w;
+      if(sel.value==="hard") s.unavailableDays[w]=true;
+      else if(sel.value==="soft") s.softUnavailableDays[w]=true;
+    });
+    s.canDoCourses=[];
+    document.querySelectorAll(".esCan").forEach(cb=>{ if(cb.checked) s.canDoCourses.push(cb.dataset.c); });
+    s.coursePriority=prio.filter(cid=>s.canDoCourses.includes(cid));
+    s.maxDaysPerWeek=+document.getElementById("esWeek").value||0;
+    s.maxConsecutive=+document.getElementById("esConsec").value||4;
+    s.recurringOff=recur;
+    saveBase(); closeModal(); renderStaff(); refreshStaffSelects(); renderOffLists();
+  };
+}
+
+/* ===================== REQUIRED ===================== */
+function renderRequired(){
+  const wrap=document.getElementById("requiredTableWrap");
+  if(base.courses.length===0){ wrap.innerHTML='<div class="muted small">先にコースを登録してください。</div>'; return; }
+  let html='<table><tr><th>曜日＼コース</th>';
+  base.courses.forEach(c=>{ html+=`<th><span class="swatch" style="background:${c.color}"></span><br>${esc(c.name)}</th>`; });
+  html+="</tr>";
+  for(let w=0;w<7;w++){
+    const cls=w===0?'dayhdr-sun':(w===6?'dayhdr-sat':'');
+    html+=`<tr><th class="${cls}">${WD[w]}</th>`;
+    base.courses.forEach(c=>{
+      const v=(base.requiredStaff[w]&&base.requiredStaff[w][c.id])||0;
+      html+=`<td><input type="number" min="0" value="${v}" data-w="${w}" data-c="${c.id}" style="width:55px"></td>`;
+    });
+    html+="</tr>";
+  }
+  html+="</table>";
+  wrap.innerHTML=html;
+  wrap.querySelectorAll("input[type=number]").forEach(inp=>{
+    inp.onchange=()=>{
+      const w=+inp.dataset.w,c=inp.dataset.c,v=Math.max(0,+inp.value||0);
+      base.requiredStaff[w]=base.requiredStaff[w]||{};
+      if(v>0) base.requiredStaff[w][c]=v; else delete base.requiredStaff[w][c];
+      saveBase();
+    };
+  });
+}
+
+/* ===================== OFF / PAID ===================== */
+function refreshStaffSelects(){
+  ["manualOffStaff","paidStaff"].forEach(id=>{
+    const sel=document.getElementById(id);
+    const prev=sel.value;
+    sel.innerHTML="";
+    base.staff.forEach(s=>{ const o=document.createElement("option");o.value=s.id;o.textContent=s.name;sel.appendChild(o); });
+    if(prev) sel.value=prev;
+  });
+}
+// resolve a m/d (or m月d日) into a date string within the period; pick year so date is in period or nearest
+function resolveDateInPeriod(mon,day){
+  const {start,end}=periodRange(curYear,curMonth);
+  // candidate years: start.year and end.year
+  const cands=[start.getFullYear(),end.getFullYear()];
+  for(const y of [...new Set(cands)]){
+    const d=new Date(y,mon-1,day);
+    if(d>=start&&d<=end) return dstr(d);
+  }
+  // fallback: use end year
+  return dstr(new Date(end.getFullYear(),mon-1,day));
+}
+function parseDatesFromText(txt){
+  // returns array of {mon,day}
+  const out=[];
+  const re=/(\d{1,2})\s*[\/月]\s*(\d{1,2})/g;
+  let m;
+  while((m=re.exec(txt))!==null){ out.push({mon:+m[1],day:+m[2]}); }
+  return out;
+}
+// 1行から、登録済みスタッフ名を「すべて」拾う（1日に複数人対応）
+function staffNamesInLine(t){
+  return base.staff.filter(s=>s.name && t.includes(s.name));
+}
+// 名前以外に何か文字が残っているか（＝名前が書いてあるが未登録の可能性）を判定するための残り文字
+function leftoverAfterStrip(t, matchedStaff){
+  let r=t;
+  matchedStaff.forEach(s=>{ r=r.split(s.name).join(""); });   // 一致した名前を除去
+  r=r.replace(/(\d{1,2})\s*[\/月]\s*(\d{1,2})/g,"");           // 日付を除去
+  r=r.replace(/[（(][日月火水木金土][）)]/g,"");                 // (曜)を除去
+  r=r.replace(/[0-9０-９曜日月休希望年.・,，、：:\/／\-―~〜（）()【】\[\]　\s]/g,""); // 記号・空白・定型語
+  return r;
+}
+function parseOff(){
+  const txt=document.getElementById("offPasteArea").value;
+  const lines=txt.split(/\n+/);
+  const unmatched=[];
+  let applied=0;
+  lines.forEach(line=>{
+    const t=line.trim();
+    if(!t) return;
+    const dates=parseDatesFromText(t);
+    if(dates.length===0) return;                 // 日付の無い行（見出し・案内文）は無視
+    const matched=staffNamesInLine(t);           // この行に含まれる登録スタッフ全員
+    if(matched.length>0){
+      matched.forEach(st=>{
+        dates.forEach(({mon,day})=>{
+          const ds=resolveDateInPeriod(mon,day);
+          if(!month.desiredOff.some(x=>x.staffId===st.id&&x.dateStr===ds)){
+            month.desiredOff.push({staffId:st.id,dateStr:ds}); applied++;
+          }
+        });
+      });
+    }else{
+      // 名前が無い行：空欄のカレンダー行なら無視、文字が残るなら「未反映」として表示
+      if(leftoverAfterStrip(t, []).length>0) unmatched.push(t);
+    }
+  });
+  saveMonth();
+  const box=document.getElementById("unmatchedBox");
+  let h=`<div class="muted small" style="margin-top:8px">${applied}件 反映しました。</div>`;
+  if(unmatched.length){
+    h+=`<div class="card" style="margin-top:8px;background:var(--soft)"><b>未反映（名前が一致しませんでした。手動で対応してください）</b><ul class="small">`;
+    unmatched.forEach(u=>h+=`<li>${esc(u)}</li>`);
+    h+=`</ul></div>`;
+  }
+  box.innerHTML=h;
+  renderOffLists();
+}
+// 記入用カレンダー（空）のテキストを作る
+function buildBlankCalendarText(){
+  const dates=periodDates(curYear,curMonth);
+  let s="【"+curYear+"年"+curMonth+"月分 希望休みの記入】\n";
+  s+="休みたい日の右に、自分の名前を書いて送ってください。\n";
+  s+="（記入例：休みたい日の行のうしろに、自分の名前を書く）\n\n";
+  dates.forEach(d=>{ s+=shortDateLabel(d)+" \n"; });
+  return s;
+}
+function makeBlankCalendar(){
+  document.getElementById("blankCalArea").value=buildBlankCalendarText();
+}
+function copyBlankCalendar(){
+  const ta=document.getElementById("blankCalArea");
+  if(!ta.value){ makeBlankCalendar(); }
+  const text=ta.value;
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>alert("コピーしました。LINEに貼り付けて送ってください。"),
+      ()=>{ ta.select(); document.execCommand && document.execCommand("copy"); alert("コピーしました。"); });
+  }else{
+    ta.select(); try{document.execCommand("copy");}catch(e){} alert("コピーしました。LINEに貼り付けて送ってください。");
+  }
+}
+function shareBlankCalendar(){
+  const ta=document.getElementById("blankCalArea");
+  if(!ta.value){ makeBlankCalendar(); }
+  const text=ta.value;
+  if(navigator.share){
+    navigator.share({text:text}).catch(()=>{});
+  }else{
+    copyBlankCalendar();
+  }
+}
+function addManualOff(){
+  const sid=document.getElementById("manualOffStaff").value;
+  const dtxt=document.getElementById("manualOffDate").value.trim();
+  if(!sid){alert("スタッフを選んでください");return;}
+  const dts=parseDatesFromText(dtxt);
+  if(dts.length===0){alert("日付を 5/28 のように入れてください");return;}
+  dts.forEach(({mon,day})=>{
+    const ds=resolveDateInPeriod(mon,day);
+    if(!month.desiredOff.some(x=>x.staffId===sid&&x.dateStr===ds)) month.desiredOff.push({staffId:sid,dateStr:ds});
+  });
+  document.getElementById("manualOffDate").value="";
+  saveMonth(); renderOffLists();
+}
+function addPaid(){
+  const sid=document.getElementById("paidStaff").value;
+  const dtxt=document.getElementById("paidDate").value.trim();
+  if(!sid){alert("スタッフを選んでください");return;}
+  const dts=parseDatesFromText(dtxt);
+  if(dts.length===0){alert("日付を 5/29 のように入れてください");return;}
+  dts.forEach(({mon,day})=>{
+    const ds=resolveDateInPeriod(mon,day);
+    if(!month.paidLeave.some(x=>x.staffId===sid&&x.dateStr===ds)) month.paidLeave.push({staffId:sid,dateStr:ds});
+  });
+  document.getElementById("paidDate").value="";
+  saveMonth(); renderOffLists();
+}
+function renderOffLists(){
+  const dWrap=document.getElementById("desiredOffList");
+  const sorted=[...month.desiredOff].sort((a,b)=>a.dateStr<b.dateStr?-1:1);
+  dWrap.innerHTML=sorted.length?"":'<div class="muted small">なし</div>';
+  sorted.forEach(o=>{
+    const st=staffById(o.staffId); if(!st) return;
+    const d=parseDstr(o.dateStr);
+    const div=document.createElement("div");
+    div.className="row"; div.style.marginBottom="4px";
+    div.innerHTML=`<span class="tag-desired">希望休</span> <b>${esc(st.name)}</b> ${shortDateLabel(d)}
+      <button class="btn warn tiny" data-s="${o.staffId}" data-d="${o.dateStr}">削除</button>`;
+    div.querySelector("button").onclick=()=>{
+      month.desiredOff=month.desiredOff.filter(x=>!(x.staffId===o.staffId&&x.dateStr===o.dateStr));
+      saveMonth(); renderOffLists();
+    };
+    dWrap.appendChild(div);
+  });
+  // 定休（スタッフ設定から自動）— この月の該当日を読み取り専用で表示
+  const recs=recurringOffForMonth().sort((a,b)=>a.dateStr<b.dateStr?-1:1);
+  if(recs.length){
+    const head=document.createElement("div");
+    head.className="muted small"; head.style.cssText="margin-top:10px;border-top:1px dashed var(--line);padding-top:8px";
+    head.innerHTML="定休（スタッフ設定から自動・編集はスタッフ編集で）";
+    dWrap.appendChild(head);
+    recs.forEach(o=>{
+      const st=staffById(o.staffId); if(!st) return;
+      const d=parseDstr(o.dateStr);
+      const div=document.createElement("div");
+      div.className="row"; div.style.marginBottom="4px";
+      div.innerHTML=`<span class="tag-teiku">定休</span> <b>${esc(st.name)}</b> ${shortDateLabel(d)}`;
+      dWrap.appendChild(div);
+    });
+  }
+  const pWrap=document.getElementById("paidLeaveList");
+  const ps=[...month.paidLeave].sort((a,b)=>a.dateStr<b.dateStr?-1:1);
+  pWrap.innerHTML=ps.length?"":'<div class="muted small">なし</div>';
+  ps.forEach(o=>{
+    const st=staffById(o.staffId); if(!st) return;
+    const d=parseDstr(o.dateStr);
+    const div=document.createElement("div");
+    div.className="row"; div.style.marginBottom="4px";
+    div.innerHTML=`<span class="tag-paid">年休</span> <b>${esc(st.name)}</b> ${shortDateLabel(d)}
+      <button class="btn warn tiny" data-s="${o.staffId}" data-d="${o.dateStr}">削除</button>`;
+    div.querySelector("button").onclick=()=>{
+      month.paidLeave=month.paidLeave.filter(x=>!(x.staffId===o.staffId&&x.dateStr===o.dateStr));
+      saveMonth(); renderOffLists();
+    };
+    pWrap.appendChild(div);
+  });
+}
+
+/* ===================== IRREGULAR ===================== */
+function coursesForDate(ds){
+  if(month.irregular && Object.prototype.hasOwnProperty.call(month.irregular,ds)) return month.irregular[ds].slice();
+  const d=parseDstr(ds);
+  return (base.weekdayCourses[d.getDay()]||[]).slice();
+}
+function editIrregular(){
+  const dtxt=document.getElementById("irrDate").value.trim();
+  const dts=parseDatesFromText(dtxt);
+  if(dts.length===0){alert("日付を 6/6 のように入れてください");return;}
+  const ds=resolveDateInPeriod(dts[0].mon,dts[0].day);
+  const d=parseDstr(ds);
+  const cur=coursesForDate(ds);
+  let html=`<h3>${shortDateLabel(d)} の特別変更</h3>
+    <div class="muted small">この日に動かすコースだけチェック（全部外すと休業）</div><div>`;
+  base.courses.forEach(c=>{
+    html+=`<label class="inline"><input type="checkbox" class="irrC" data-c="${c.id}" ${cur.includes(c.id)?"checked":""}> ${esc(c.name)}</label>`;
+  });
+  html+=`</div><div class="row" style="margin-top:10px">
+    <button class="btn" id="irrSave">保存</button>
+    <button class="btn sec" id="irrReset">基本に戻す</button></div>`;
+  openModal(html);
+  document.getElementById("irrSave").onclick=()=>{
+    const arr=[];
+    document.querySelectorAll(".irrC").forEach(cb=>{ if(cb.checked) arr.push(cb.dataset.c); });
+    month.irregular[ds]=arr;
+    saveMonth(); closeModal(); renderIrrList(); renderShiftGrid();
+  };
+  document.getElementById("irrReset").onclick=()=>{
+    delete month.irregular[ds];
+    saveMonth(); closeModal(); renderIrrList(); renderShiftGrid();
+  };
+}
+function renderIrrList(){
+  const wrap=document.getElementById("irrList");
+  const keys=Object.keys(month.irregular||{}).sort();
+  wrap.innerHTML=keys.length?"":'<div class="muted small">特別変更はありません。</div>';
+  keys.forEach(ds=>{
+    const d=parseDstr(ds);
+    const names=month.irregular[ds].map(courseName).join("・")||"（休業）";
+    const div=document.createElement("div");
+    div.className="row"; div.style.marginBottom="4px";
+    div.innerHTML=`<b>${shortDateLabel(d)}</b> → ${esc(names)}
+      <button class="btn warn tiny" data-d="${ds}">取消</button>`;
+    div.querySelector("button").onclick=()=>{
+      delete month.irregular[ds]; saveMonth(); renderIrrList(); renderShiftGrid();
+    };
+    wrap.appendChild(div);
+  });
+}
+
+/* ===================== AUTO ASSIGN ===================== */
+function isBlockedDate(staffId,ds){
+  if(month.desiredOff.some(x=>x.staffId===staffId&&x.dateStr===ds)) return true;
+  if(month.paidLeave.some(x=>x.staffId===staffId&&x.dateStr===ds)) return true;
+  const s=staffById(staffId);                                   // 毎月の定休
+  if(s && matchesRecurringOff(s, parseDstr(ds))) return true;
+  return false;
+}
+// seed consecutive count from previous months' confirmed shifts immediately before period start
+function seedConsecutive(){
+  const {start}=periodRange(curYear,curMonth);
+  const seed={};
+  base.staff.forEach(s=>{ seed[s.id]=0; });
+  // walk backwards from day before start
+  base.staff.forEach(s=>{
+    let count=0;
+    let d=new Date(start); d.setDate(d.getDate()-1);
+    for(let i=0;i<400;i++){ // cap
+      const ds=dstr(d);
+      // determine which month object holds this date: a date X belongs to monthKey of its period END.
+      const pk=periodKeyForDate(d);
+      const md=loadMonthByKey(pk);
+      let worked=false;
+      if(md && md.shift && md.shift[ds]){
+        const slot=md.shift[ds];
+        for(const cid in slot){ if((slot[cid]||[]).includes(s.id)){ worked=true; break; } }
+      }
+      if(worked) count++; else break;
+      d.setDate(d.getDate()-1);
+    }
+    seed[s.id]=count;
+  });
+  return seed;
+}
+// the period-end month key for an arbitrary date
+function periodKeyForDate(d){
+  // date belongs to period whose end-15th month: if day<=15 -> that month; else next month
+  let y=d.getFullYear(), m=d.getMonth()+1;
+  if(d.getDate()>15){ m++; if(m>12){m=1;y++;} }
+  return monthKey(y,m);
+}
+// 日付Dを「出勤」とした場合の連勤の長さ（前月シードも考慮）。période内のみ前方を数える。
+function runLengthIfWork(set, seedCount, startDate, D){
+  let back=0;
+  let dd=new Date(D); dd.setDate(dd.getDate()-1);
+  while(true){
+    if(dd<startDate){
+      const diff=Math.round((startDate-dd)/86400000); // start-1 → 1
+      if(diff<=seedCount){ back++; dd.setDate(dd.getDate()-1); continue; }
+      break;
+    }
+    if(set.has(dstr(dd))){ back++; dd.setDate(dd.getDate()-1); } else break;
+  }
+  let fwd=0;
+  let df=new Date(D); df.setDate(df.getDate()+1);
+  while(set.has(dstr(df))){ fwd++; df.setDate(df.getDate()+1); }
+  return back+fwd+1;
+}
+// シフトオブジェクトから「スタッフ×週」の出勤日数を集計
+function weeklyCounts(shiftObj, dates){
+  const res={}; base.staff.forEach(s=>res[s.id]={});
+  dates.forEach(d=>{
+    const ds=dstr(d), wk=weekKey(d), slot=shiftObj[ds]||{};
+    base.staff.forEach(s=>{ for(const cid in slot){ if((slot[cid]||[]).includes(s.id)){ res[s.id][wk]=(res[s.id][wk]||0)+1; break; } } });
+  });
+  return res;
+}
+// あるスタッフがその週に出られる可能性のある日数（休み・絶対NG・コース無しを除く。連勤は考慮しない概算）
+function feasibleDaysInWeek(s, wdates){
+  return wdates.filter(d=>{
+    const ds=dstr(d), wd=d.getDay();
+    if(isBlockedDate(s.id,ds)) return false;
+    if((s.unavailableDays||[])[wd]) return false;
+    const todays=coursesForDate(ds).filter(cid=>courseById(cid));
+    return todays.some(cid=>(s.canDoCourses||[]).includes(cid));
+  }).length;
+}
+function autoAssign(){
+  if(base.courses.length===0||base.staff.length===0){ alert("先に「コース」と「スタッフ」を登録してください。"); return; }
+
+  const dates=periodDates(curYear,curMonth);
+
+  // 設定不足チェック（非エンジニア向けに何を直せばよいか案内する）
+  let anyCourse=false, anyNeed=false;
+  dates.forEach(d=>{
+    const ds=dstr(d);
+    coursesForDate(ds).filter(cid=>courseById(cid)).forEach(cid=>{
+      anyCourse=true;
+      if(((base.requiredStaff[d.getDay()]||{})[cid]||0)>0) anyNeed=true;
+    });
+  });
+  if(!anyCourse){
+    alert("どの曜日にもコースが設定されていません。\n「コース」タブの『曜日ごとの基本コース』で、各曜日に動かすコースにチェックを入れてください。");
+    return;
+  }
+  if(!anyNeed){
+    alert("必要人数が設定されていません。\n「必要人数」タブで、各曜日・各コースに必要な人数を入れてください。");
+    return;
+  }
+
+  if(!confirm("自動でシフトを作成します（今ある自動結果は上書きされます）。よろしいですか？")) return;
+  const newShift={};
+  const seed=seedConsecutive();              // 前月末からの連勤数
+  const consec=Object.assign({},seed);       // consecutive day counter (seeded across months)
+  const weekCount={};                        // staffId -> {weekKey:count}
+  const totalAssigned={};                    // staffId -> total days this period
+  const workedSet={};                        // staffId -> Set(dateStr)
+  base.staff.forEach(s=>{ weekCount[s.id]={}; totalAssigned[s.id]=0; workedSet[s.id]=new Set(); });
+
+  dates.forEach(d=>{
+    const ds=dstr(d);
+    const wd=d.getDay();
+    const wk=weekKey(d);
+    const courses=coursesForDate(ds).filter(cid=>courseById(cid)); // valid only
+    const remaining={};
+    courses.forEach(cid=>{
+      const need=(base.requiredStaff[wd]&&base.requiredStaff[wd][cid])||0;
+      if(need>0) remaining[cid]=need;
+    });
+    // available staff today (absolute rules, course-doability checked per slot)
+    const assignedToday={}; // staffId -> courseId
+    const available=base.staff.filter(s=>{
+      if(isBlockedDate(s.id,ds)) return false;                 // a. desired/paid off
+      if((s.unavailableDays||[])[wd]) return false;            // b. unavailable weekday
+      const wc=(weekCount[s.id][wk]||0)+1;
+      if(s.maxDaysPerWeek>0 && wc>s.maxDaysPerWeek) return false; // d. week limit
+      const maxC=s.maxConsecutive||4;
+      if((consec[s.id]||0)+1>maxC) return false;               // e. consecutive limit
+      return true;
+    });
+
+    // greedy global fill — 2段階：
+    //  phase1=「基本NG」曜日の人を除いて埋める
+    //  phase2=まだ足りない枠だけ「基本NG」の人も使って埋める（最後の手段）
+    [false,true].forEach(allowSoft=>{
+      while(true){
+        let best=null,bestScore=-1;
+        for(const cid in remaining){
+          if(remaining[cid]<=0) continue;
+          for(const s of available){
+            if(assignedToday[s.id]) continue;                    // one course per day
+            if(!(s.canDoCourses||[]).includes(cid)) continue;    // c. course-doability
+            const soft=(s.softUnavailableDays||[])[wd];
+            if(soft && !allowSoft) continue;                     // phase1 は基本NGの人を除外
+            let score;
+            const cObj=courseById(cid);
+            const isFixed=cObj && cObj.fixedByWeekday && (cObj.fixedByWeekday[wd]||[]).includes(s.id);
+            if(isFixed){
+              score=10000000;                                  // 固定担当は最優先（専任より上）
+            }else if(isSpecialist(s) && s.canDoCourses[0]===cid){
+              score=1000000;                                   // 専任は次に優先
+            }else{
+              // コース側の「入れたい人の順番」を最優先、本人のコース希望を次点に
+              const idx=(s.coursePriority||[]).indexOf(cid);
+              const own=idx<0?0:((s.coursePriority||[]).length-idx);
+              score=courseStaffRank(cid,s.id)*1000 + own;
+            }
+            // 過不足を減らす微調整：契約日数まで届いていない人を優先、出勤の偏りも均す
+            const contract=s.maxDaysPerWeek||0;
+            const wc=weekCount[s.id][wk]||0;
+            const deficit=Math.max(0, contract-wc);
+            const adj=score + deficit*0.1 - totalAssigned[s.id]*0.001;
+            if(adj>bestScore){ bestScore=adj; best={sid:s.id,cid}; }
+          }
+        }
+        if(!best) break;
+        // assign
+        newShift[ds]=newShift[ds]||{};
+        newShift[ds][best.cid]=newShift[ds][best.cid]||[];
+        newShift[ds][best.cid].push(best.sid);
+        assignedToday[best.sid]=best.cid;
+        remaining[best.cid]--;
+        totalAssigned[best.sid]++;
+      }
+    });
+
+    // update counters
+    base.staff.forEach(s=>{
+      if(assignedToday[s.id]){
+        consec[s.id]=(consec[s.id]||0)+1;
+        weekCount[s.id][wk]=(weekCount[s.id][wk]||0)+1;
+        workedSet[s.id].add(ds);
+      }else{
+        consec[s.id]=0;
+      }
+    });
+  });
+
+  // ===== phase2: 契約日数（週ごと）を必ず満たすように追加する =====
+  //  絶対ルール（休み・年休・絶対NG曜日・できないコース・連勤上限）は守る。
+  //  必要人数を超えても（＝過剰でも）契約日数まで出す。基本NGの曜日はなるべく避け、最後に使う。
+  const startD=periodRange(curYear,curMonth).start;
+  // phase1後の残り必要人数
+  const remNeed={};
+  dates.forEach(d=>{
+    const ds=dstr(d), wd=d.getDay();
+    coursesForDate(ds).filter(cid=>courseById(cid)).forEach(cid=>{
+      const lack=requiredCount(wd,cid)-((newShift[ds]||{})[cid]||[]).length;
+      if(lack>0){ remNeed[ds]=remNeed[ds]||{}; remNeed[ds][cid]=lack; }
+    });
+  });
+  // 週ごとにまとめる
+  const weeks={};
+  dates.forEach(d=>{ const wk=weekKey(d); (weeks[wk]=weeks[wk]||[]).push(d); });
+  Object.keys(weeks).sort().forEach(wk=>{
+    const wdates=weeks[wk];
+    base.staff.forEach(s=>{
+      const contract=s.maxDaysPerWeek||0;
+      if(contract<=0) return;                       // 0=契約日数の指定なし
+      let have=weekCount[s.id][wk]||0;
+      if(have>=contract) return;
+      // この週に追加できる候補日
+      let cands=wdates.filter(d=>{
+        const ds=dstr(d), wd=d.getDay();
+        if(workedSet[s.id].has(ds)) return false;
+        if(isBlockedDate(s.id,ds)) return false;            // 休み・年休
+        if((s.unavailableDays||[])[wd]) return false;       // 絶対NG
+        const doable=coursesForDate(ds).filter(cid=>courseById(cid)&&(s.canDoCourses||[]).includes(cid));
+        if(doable.length===0) return false;                 // 入れるコースが無い日
+        if(runLengthIfWork(workedSet[s.id], seed[s.id]||0, startD, d)>(s.maxConsecutive||4)) return false;
+        return true;
+      });
+      // 並び：基本NGでない日を優先 → 必要人数が残っている日を優先
+      cands.sort((a,b)=>{
+        const aSoft=(s.softUnavailableDays||[])[a.getDay()]?1:0, bSoft=(s.softUnavailableDays||[])[b.getDay()]?1:0;
+        if(aSoft!==bSoft) return aSoft-bSoft;
+        const aNeed=remNeed[dstr(a)]?1:0, bNeed=remNeed[dstr(b)]?1:0;
+        if(aNeed!==bNeed) return bNeed-aNeed;
+        return 0;
+      });
+      for(const d of cands){
+        if(have>=contract) break;
+        const ds=dstr(d);
+        if(workedSet[s.id].has(ds)) continue;
+        if(runLengthIfWork(workedSet[s.id], seed[s.id]||0, startD, d)>(s.maxConsecutive||4)) continue;
+        const doable=coursesForDate(ds).filter(cid=>courseById(cid)&&(s.canDoCourses||[]).includes(cid));
+        if(doable.length===0) continue;
+        // 入れるコース：必要人数が残っている所を優先、その中で本人の優先順位が高いコース
+        const needed=doable.filter(cid=>remNeed[ds]&&remNeed[ds][cid]>0);
+        const pool=needed.length?needed:doable;
+        let pick=null;
+        pool.forEach(cid=>{
+          const idx=(s.coursePriority||[]).indexOf(cid);
+          const rank=idx<0?0:((s.coursePriority||[]).length-idx);
+          if(!pick||rank>pick.rank) pick={cid,rank};
+        });
+        const cid=pick.cid;
+        newShift[ds]=newShift[ds]||{}; newShift[ds][cid]=newShift[ds][cid]||[]; newShift[ds][cid].push(s.id);
+        workedSet[s.id].add(ds);
+        weekCount[s.id][wk]=(weekCount[s.id][wk]||0)+1;
+        totalAssigned[s.id]++;
+        have++;
+        if(remNeed[ds]&&remNeed[ds][cid]>0){ remNeed[ds][cid]--; if(remNeed[ds][cid]<=0) delete remNeed[ds][cid]; }
+      }
+    });
+  });
+
+  month.shift=newShift;
+  saveMonth();
+  renderShiftGrid();
+  // 集計してフィードバック
+  let filled=0, shortage=0;
+  dates.forEach(d=>{
+    const ds=dstr(d);
+    coursesForDate(ds).filter(cid=>courseById(cid)).forEach(cid=>{
+      const need=requiredCount(d.getDay(),cid);
+      const got=((newShift[ds]||{})[cid]||[]).length;
+      filled+=Math.min(got,need);
+      if(got<need) shortage+=(need-got);
+    });
+  });
+  // 契約日数に届かなかった分（休み・絶対NG・連勤上限などの制約のため）
+  const wcFinal=weeklyCounts(newShift,dates);
+  const weekList=[...new Set(dates.map(d=>weekKey(d)))];
+  let contractShort=0;
+  base.staff.forEach(s=>{ const c=s.maxDaysPerWeek||0; if(c<=0) return;
+    weekList.forEach(wk=>{ const wdates=dates.filter(d=>weekKey(d)===wk);
+      const target=Math.min(c, feasibleDaysInWeek(s,wdates));
+      const got=wcFinal[s.id][wk]||0;
+      if(got<target) contractShort+=(target-got);
+    });
+  });
+  let msg="シフトを作成しました。下の「結果表示・調整」で確認できます。\n割り当て済み "+filled+" コマ";
+  if(shortage>0) msg+=" ／ 必要人数の不足 "+shortage+" コマ";
+  if(contractShort>0) msg+="\n契約日数に届かない: "+contractShort+"日分（希望休・絶対NG・連勤上限などの制約のため）";
+  alert(msg);
+}
+
+/* ===================== SHIFT GRID ===================== */
+function requiredCount(wd,cid){ return (base.requiredStaff[wd]&&base.requiredStaff[wd][cid])||0; }
+function renderShiftGrid(){
+  const wrap=document.getElementById("shiftGridWrap");
+  const issuesWrap=document.getElementById("shiftIssues");
+  const dates=periodDates(curYear,curMonth);
+  if(base.courses.length===0){ wrap.innerHTML='<div class="muted small">先にコースを登録してください。</div>'; issuesWrap.innerHTML=""; return; }
+  if(base.staff.length===0){ wrap.innerHTML='<div class="muted small">先にスタッフを登録してください。</div>'; issuesWrap.innerHTML=""; return; }
+
+  // 縦軸=スタッフ, 横軸=日付, セル=コース
+  let html='<table class="shift-matrix"><tr><th class="staffcol">スタッフ＼日付</th>';
+  dates.forEach((d,i)=>{
+    const wd=d.getDay();
+    let cls=wd===0?'dayhdr-sun':(wd===6?'dayhdr-sat':'');
+    if(wd===0 && i>0) cls += ' wk-sep';                          // 土→日の境目に太赤線
+    const ds=dstr(d);
+    const irr=(month.irregular&&Object.prototype.hasOwnProperty.call(month.irregular,ds))?'<sup>*</sup>':'';
+    html+=`<th class="${cls}">${shortDateLabel(d)}${irr}</th>`;
+  });
+  html+="</tr>";
+  base.staff.forEach(s=>{
+    const spec=isSpecialist(s)?' <span class="badge">専任</span>':'';
+    html+=`<tr><th class="staffcol">${esc(s.name)}${spec}</th>`;
+    dates.forEach((d,i)=>{
+      const ds=dstr(d);
+      let ac=null; const slot=month.shift[ds]||{};
+      for(const cid in slot){ if((slot[cid]||[]).includes(s.id)){ ac=cid; break; } }
+      let cell, bg="";
+      if(ac){
+        cell=`<b>${esc(courseName(ac))}</b>`; bg=courseColor(ac)+"44";
+      }else if(month.paidLeave.some(x=>x.staffId===s.id&&x.dateStr===ds)){
+        cell='<span class="tag-paid">年休</span>';
+      }else if(month.desiredOff.some(x=>x.staffId===s.id&&x.dateStr===ds)){
+        cell='<span class="tag-desired">◎</span>';
+      }else if(matchesRecurringOff(s, d)){
+        cell='<span class="tag-teiku">定休</span>';
+      }else{
+        cell='<span class="muted">◯</span>';
+      }
+      const sepCls=(d.getDay()===0 && i>0)?' wk-sep':'';
+      html+=`<td class="${sepCls.trim()}" style="cursor:pointer;background:${bg}" data-s="${s.id}" data-ds="${ds}">${cell}</td>`;
+    });
+    html+="</tr>";
+  });
+  html+="</table>";
+  wrap.innerHTML=html;
+  wrap.querySelectorAll("td[data-s]").forEach(td=>{
+    td.onclick=()=>editCell(td.dataset.s, td.dataset.ds);
+  });
+
+  // 充足チェック（不足・過剰）— マス＝コースの並びでは1マスに出せないため、表の下にまとめる
+  let issues="";
+  dates.forEach(d=>{
+    const ds=dstr(d), wd=d.getDay();
+    const todays=coursesForDate(ds).filter(cid=>courseById(cid));
+    const parts=[];
+    todays.forEach(cid=>{
+      const need=requiredCount(wd,cid);
+      const got=((month.shift[ds]||{})[cid]||[]).length;
+      if(got<need) parts.push(`<span class="cell-short" style="padding:1px 7px;border-radius:6px">${esc(courseName(cid))} 不足${need-got}人</span>`);
+      else if(need>0&&got>need) parts.push(`<span class="cell-over" style="padding:1px 7px;border-radius:6px">${esc(courseName(cid))} 過剰${got-need}人</span>`);
+      else if(need===0&&got>0) parts.push(`<span class="cell-over" style="padding:1px 7px;border-radius:6px">${esc(courseName(cid))} 過剰${got}人</span>`);
+    });
+    if(parts.length) issues+=`<div style="margin:4px 0"><b>${shortDateLabel(d)}</b> ${parts.join(" ")}</div>`;
+  });
+
+  // 契約日数の未達チェック（週ごと）
+  const wc=weeklyCounts(month.shift, dates);
+  const weekKeys=[...new Set(dates.map(d=>weekKey(d)))].sort();
+  let cIssues="";
+  base.staff.forEach(s=>{
+    const c=s.maxDaysPerWeek||0; if(c<=0) return;
+    weekKeys.forEach(wk=>{
+      const wdates=dates.filter(d=>weekKey(d)===wk);
+      const target=Math.min(c, feasibleDaysInWeek(s,wdates));
+      const got=wc[s.id][wk]||0;
+      if(got<target){
+        const a=wdates[0], b=wdates[wdates.length-1];
+        const lab=(a.getMonth()+1)+"/"+a.getDate()+"〜"+(b.getMonth()+1)+"/"+b.getDate();
+        cIssues+=`<div style="margin:3px 0"><b>${esc(s.name)}</b> <span class="muted">${lab}の週</span> 契約${c}日に対して<b>${got}日</b></div>`;
+      }
+    });
+  });
+
+  let boxes="";
+  if(issues) boxes+=`<div class="card" style="margin-top:12px;background:var(--soft)"><b>充足チェック（必要人数の不足・過剰）</b><div class="small" style="margin-top:6px">${issues}</div></div>`;
+  if(cIssues) boxes+=`<div class="card" style="margin-top:12px;background:#fff3e0"><b>契約日数に届かない週</b><div class="muted small" style="margin:4px 0">希望休・絶対NG・連勤上限などの制約で埋められなかった分です。手動で調整できます。</div><div class="small">${cIssues}</div></div>`;
+  if(!issues && !cIssues) boxes=`<div class="muted small" style="margin-top:10px">✓ 必要人数・契約日数とも問題ありません。</div>`;
+  issuesWrap.innerHTML=boxes;
+}
+function editCell(staffId, ds){
+  const s=staffById(staffId); if(!s) return;
+  const d=parseDstr(ds);
+  const wd=d.getDay();
+  const hardNG=(s.unavailableDays||[])[wd];
+  const softNG=(s.softUnavailableDays||[])[wd];
+  const todays=coursesForDate(ds).filter(cid=>courseById(cid));
+  // 絶対NGの曜日は担当に入れられない（休みのみ）
+  const doable=hardNG ? [] : todays.filter(cid=>(s.canDoCourses||[]).includes(cid));
+  // 現在の担当
+  let cur="off"; const slot=month.shift[ds]||{};
+  for(const cid in slot){ if((slot[cid]||[]).includes(staffId)){ cur=cid; break; } }
+  let warn="";
+  if(isBlockedDate(staffId,ds)) warn='<div class="tag-desired" style="display:inline-block;margin:4px 0">希望休／年休の日です</div>';
+  else if(hardNG) warn='<div class="tag-off" style="display:inline-block;margin:4px 0">この曜日は「絶対NG」のため担当に入れられません</div>';
+  else if(softNG) warn='<div class="tag-off" style="display:inline-block;margin:4px 0">この曜日は「基本NG」です（必要なら入れられます）</div>';
+  let html=`<h3>${esc(s.name)} ／ ${shortDateLabel(d)}</h3>${warn}
+    <div class="muted small">この日の担当コースを選んでください。</div><div style="margin:8px 0">`;
+  html+=`<label class="inline" style="display:flex"><input type="radio" name="cellc" value="off" ${cur==="off"?"checked":""}> 休み（◯）</label>`;
+  if(hardNG) html+='<div class="muted small">この曜日は「絶対NG」のため、担当には入れられません。</div>';
+  else if(doable.length===0) html+='<div class="muted small">この日にこの人が入れるコースはありません。</div>';
+  doable.forEach(cid=>{
+    html+=`<label class="inline" style="display:flex"><input type="radio" name="cellc" value="${cid}" ${cur===cid?"checked":""}> <span class="swatch" style="background:${courseColor(cid)}"></span> ${esc(courseName(cid))}</label>`;
+  });
+  html+=`</div><div class="row"><button class="btn" id="cellSave">保存</button></div>`;
+  openModal(html);
+  document.getElementById("cellSave").onclick=()=>{
+    const chk=document.querySelector('input[name="cellc"]:checked');
+    const val=chk?chk.value:"off";
+    month.shift[ds]=month.shift[ds]||{};
+    // この日の全コースからこの人を外す（1日1コース）
+    for(const cid in month.shift[ds]){ month.shift[ds][cid]=(month.shift[ds][cid]||[]).filter(x=>x!==staffId); }
+    if(val!=="off"){ month.shift[ds][val]=month.shift[ds][val]||[]; month.shift[ds][val].push(staffId); }
+    saveMonth(); closeModal(); renderShiftGrid();
+  };
+}
+function clearShift(){
+  if(!confirm("この月のシフトを全部消しますか？")) return;
+  month.shift={}; saveMonth(); renderShiftGrid();
+}
+
+/* ===================== CSV EXPORT ===================== */
+function exportCSV(){
+  const dates=periodDates(curYear,curMonth);
+  const rows=[];
+  rows.push([curYear+"年"+curMonth+"月シフト表"]);
+  const header=["スタッフ"];
+  dates.forEach(d=>header.push(shortDateLabel(d)));
+  rows.push(header);
+  base.staff.forEach(s=>{
+    const row=[s.name];
+    dates.forEach(d=>{
+      const ds=dstr(d);
+      // find assignment
+      let assignedCourse=null;
+      const slot=month.shift[ds]||{};
+      for(const cid in slot){ if((slot[cid]||[]).includes(s.id)){ assignedCourse=cid; break; } }
+      if(assignedCourse){ row.push(courseName(assignedCourse)); }
+      else if(month.paidLeave.some(x=>x.staffId===s.id&&x.dateStr===ds)){ row.push("年休"); }
+      else if(month.desiredOff.some(x=>x.staffId===s.id&&x.dateStr===ds)){ row.push("◎"); }
+      else if(matchesRecurringOff(s,d)){ row.push("定休"); }
+      else { row.push("◯"); }
+    });
+    rows.push(row);
+  });
+  const csv=rows.map(r=>r.map(cell=>{
+    const v=String(cell==null?"":cell);
+    return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
+  }).join(",")).join("\r\n");
+  const bom="﻿";
+  const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8;"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=curYear+"年"+curMonth+"月シフト表.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ===================== データのバックアップ（全データJSON） ===================== */
+const BACKUP_APP_ID="shift-scheduler";
+// localStorage + メモリ控えから shiftapp_ 系の全データを集める
+function collectAppData(){
+  const data={};
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k && k.indexOf("shiftapp_")===0) data[k]=localStorage.getItem(k);
+    }
+  }catch(e){}
+  Object.keys(memStore).forEach(k=>{ if(k.indexOf("shiftapp_")===0 && !(k in data)) data[k]=memStore[k]; });
+  return data;
+}
+function exportData(){
+  // 現在の状態を確実に書き出すため、いったん保存
+  saveBase(); saveMonth();
+  const payload={
+    app:BACKUP_APP_ID,
+    version:1,
+    exportedAt:new Date().toISOString(),
+    data:collectAppData()
+  };
+  const now=new Date();
+  const ymd=now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate());
+  const blob=new Blob([JSON.stringify(payload)],{type:"application/json"});
+  downloadBlob(blob,"shift_backup_"+ymd+".json");
+  alert("データを書き出しました（shift_backup_"+ymd+".json）。\nこのファイルをスマホや別のPCに移して「データを読み込む」で復元できます。");
+}
+function importData(file){
+  const reader=new FileReader();
+  reader.onload=function(){
+    let parsed;
+    try{ parsed=JSON.parse(reader.result); }
+    catch(e){ alert("ファイルを読み込めませんでした。バックアップ用のJSONファイルか確認してください。"); return; }
+    // 形式チェック
+    if(!parsed || parsed.app!==BACKUP_APP_ID || typeof parsed.data!=="object" || parsed.data===null){
+      alert("このファイルはこのアプリのバックアップではないようです。\n読み込みを中止しました（データは変更していません）。");
+      return;
+    }
+    const keys=Object.keys(parsed.data).filter(k=>k.indexOf("shiftapp_")===0);
+    if(keys.length===0){
+      alert("バックアップの中にデータが見つかりませんでした。\n読み込みを中止しました（データは変更していません）。");
+      return;
+    }
+    if(!confirm("今のデータは上書きされます。よろしいですか？")) return;
+    // 既存の shiftapp_ 系を消してから書き戻す（丸ごと復元）
+    const toRemove=[];
+    try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.indexOf("shiftapp_")===0) toRemove.push(k); } }catch(e){}
+    toRemove.forEach(k=>lsRemove(k));
+    Object.keys(memStore).forEach(k=>{ if(k.indexOf("shiftapp_")===0) delete memStore[k]; });
+    keys.forEach(k=>{ lsSet(k, String(parsed.data[k])); });
+    // 画面に反映
+    base=loadBase();
+    onMonthChange();
+    alert("データを読み込みました。");
+  };
+  reader.onerror=function(){ alert("ファイルの読み込みに失敗しました。"); };
+  reader.readAsText(file);
+}
+
+/* ===================== シフト表を画像化（LINE送信用） ===================== */
+// 画面と同じ「縦=スタッフ・横=日付・マス=コース」の表をCanvasに描画してPNGにする
+function buildShiftCanvas(){
+  const dates=periodDates(curYear,curMonth);
+  const SC=2;                 // 解像度2倍（くっきり）
+  const staffW=110, dateW=70, rowH=38, headH=44, titleH=46, pad=12;
+  const cols=dates.length;
+  const W=(staffW + cols*dateW + pad*2);
+  const H=(titleH + headH + base.staff.length*rowH + pad*2);
+  const cv=document.createElement("canvas");
+  cv.width=W*SC; cv.height=H*SC;
+  const ctx=cv.getContext("2d");
+  ctx.scale(SC,SC);
+  ctx.textBaseline="middle";
+  // 背景
+  ctx.fillStyle="#ffffff"; ctx.fillRect(0,0,W,H);
+  // タイトル
+  ctx.fillStyle="#4a4458"; ctx.font="bold 22px sans-serif"; ctx.textAlign="left";
+  ctx.fillText(curYear+"年"+curMonth+"月 シフト表", pad, pad+titleH/2);
+  const x0=pad, y0=pad+titleH;
+  // ヘッダー行
+  ctx.font="bold 13px sans-serif"; ctx.textAlign="center";
+  ctx.fillStyle="#eef4fb"; ctx.fillRect(x0,y0,staffW,headH);
+  ctx.fillStyle="#4a4458"; ctx.fillText("スタッフ", x0+staffW/2, y0+headH/2);
+  dates.forEach((d,i)=>{
+    const x=x0+staffW+i*dateW;
+    ctx.fillStyle="#eef4fb"; ctx.fillRect(x,y0,dateW,headH);
+    const wd=d.getDay();
+    ctx.fillStyle = wd===0?"#d05a7a":(wd===6?"#5a7fd0":"#4a4458");
+    ctx.fillText((d.getMonth()+1)+"/"+d.getDate(), x+dateW/2, y0+headH/2-8);
+    ctx.fillText("("+WD[wd]+")", x+dateW/2, y0+headH/2+9);
+  });
+  // 各スタッフ行
+  base.staff.forEach((s,r)=>{
+    const y=y0+headH+r*rowH;
+    ctx.fillStyle="#f7f4fb"; ctx.fillRect(x0,y,staffW,rowH);
+    ctx.fillStyle="#4a4458"; ctx.font="bold 13px sans-serif"; ctx.textAlign="left";
+    ctx.fillText(s.name, x0+6, y+rowH/2);
+    dates.forEach((d,i)=>{
+      const x=x0+staffW+i*dateW, ds=dstr(d);
+      let ac=null; const slot=month.shift[ds]||{};
+      for(const cid in slot){ if((slot[cid]||[]).includes(s.id)){ ac=cid; break; } }
+      let label, bgC=null, txtC="#4a4458";
+      if(ac){ label=courseName(ac); bgC=courseColor(ac); }
+      else if(month.paidLeave.some(x=>x.staffId===s.id&&x.dateStr===ds)){ label="年休"; bgC="#cfe0f3"; txtC="#3b5d86"; }
+      else if(month.desiredOff.some(x=>x.staffId===s.id&&x.dateStr===ds)){ label="◎"; txtC="#9c3f63"; }
+      else if(matchesRecurringOff(s,d)){ label="定休"; bgC="#e6dcf5"; txtC="#6b4ea0"; }
+      else { label="◯"; txtC="#aaa3b5"; }
+      if(bgC){ ctx.fillStyle=bgC; ctx.globalAlpha=0.5; ctx.fillRect(x,y,dateW,rowH); ctx.globalAlpha=1; }
+      ctx.fillStyle=txtC; ctx.font="13px sans-serif"; ctx.textAlign="center";
+      // 長い名前は縮める
+      let t=label; if(ctx.measureText(t).width>dateW-8){ while(t.length>1 && ctx.measureText(t+"…").width>dateW-8) t=t.slice(0,-1); t+="…"; }
+      ctx.fillText(t, x+dateW/2, y+rowH/2);
+    });
+  });
+  // 罫線
+  ctx.strokeStyle="#e0d8e8"; ctx.lineWidth=1;
+  const gridTop=y0, gridBottom=y0+headH+base.staff.length*rowH, gridRight=x0+staffW+cols*dateW;
+  for(let r=0;r<=base.staff.length+1;r++){ const y=y0+(r===0?0:headH+(r-1)*rowH); ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(gridRight,y); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(x0,gridBottom); ctx.lineTo(gridRight,gridBottom); ctx.stroke();
+  for(let cN=0;cN<=cols;cN++){ const x=x0+staffW+cN*dateW; ctx.beginPath(); ctx.moveTo(x,gridTop); ctx.lineTo(x,gridBottom); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(x0,gridTop); ctx.lineTo(x0,gridBottom); ctx.stroke();
+  // 土→日の境目に太い赤線
+  ctx.strokeStyle="#d05a7a"; ctx.lineWidth=3;
+  dates.forEach((d,i)=>{
+    if(d.getDay()===0 && i>0){
+      const x=x0+staffW+i*dateW;
+      ctx.beginPath(); ctx.moveTo(x,gridTop); ctx.lineTo(x,gridBottom); ctx.stroke();
+    }
+  });
+  return cv;
+}
+function shareShiftImage(){
+  if(base.courses.length===0||base.staff.length===0){ alert("先にコース・スタッフを登録し、シフトを作成してください。"); return; }
+  const cv=buildShiftCanvas();
+  const fname=curYear+"年"+curMonth+"月シフト表.png";
+  cv.toBlob(function(blob){
+    if(!blob){ alert("画像の作成に失敗しました。"); return; }
+    const file=new File([blob],fname,{type:"image/png"});
+    // スマホなど：共有シート（LINEを選べる）
+    if(navigator.canShare && navigator.canShare({files:[file]}) && navigator.share){
+      navigator.share({files:[file], title:curYear+"年"+curMonth+"月シフト表"})
+        .catch(()=>{ downloadBlob(blob,fname); });
+    }else{
+      // PCなど：画像を保存 → LINEに添付してもらう
+      downloadBlob(blob,fname);
+      alert("シフト表の画像を保存しました。\nLINEを開いて、写真として添付して送ってください。");
+    }
+  },"image/png");
+}
+function downloadBlob(blob,fname){
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=fname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+/* ===================== MODAL ===================== */
+function openModal(html){
+  const box=document.getElementById("modalBox");
+  box.innerHTML=`<span class="close-x" onclick="closeModal()">×</span>`+html;
+  document.getElementById("modalBg").classList.add("show");
+}
+function closeModal(){ document.getElementById("modalBg").classList.remove("show"); }
+document.getElementById("modalBg").addEventListener("click",e=>{ if(e.target.id==="modalBg") closeModal(); });
+
+/* ===================== UTIL ===================== */
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ===================== RENDER ALL ===================== */
+function renderAll(){
+  renderCourses();
+  renderWeekdayCourses();
+  renderStaff();
+  renderRequired();
+  refreshStaffSelects();
+  renderOffLists();
+  renderIrrList();
+  renderShiftGrid();
+}
+
+/* ===================== WIRE EVENTS ===================== */
+document.getElementById("addCourseBtn").onclick=addCourse;
+document.getElementById("addStaffBtn").onclick=addStaff;
+document.getElementById("parseOffBtn").onclick=parseOff;
+document.getElementById("makeBlankCalBtn").onclick=makeBlankCalendar;
+document.getElementById("copyBlankCalBtn").onclick=copyBlankCalendar;
+document.getElementById("shareBlankCalBtn").onclick=shareBlankCalendar;
+document.getElementById("addManualOffBtn").onclick=addManualOff;
+document.getElementById("addPaidBtn").onclick=addPaid;
+document.getElementById("editIrrBtn").onclick=editIrregular;
+document.getElementById("autoGenBtn").onclick=autoAssign;
+document.getElementById("clearShiftBtn").onclick=clearShift;
+document.getElementById("csvBtn").onclick=exportCSV;
+document.getElementById("shareImgBtn").onclick=shareShiftImage;
+document.getElementById("exportDataBtn").onclick=exportData;
+document.getElementById("importDataBtn").onclick=()=>document.getElementById("importFileInput").click();
+document.getElementById("importFileInput").onchange=function(){
+  if(this.files && this.files[0]) importData(this.files[0]);
+  this.value="";  // 同じファイルを再度選べるようにクリア
+};
+
+/* ===================== BOOT ===================== */
+// 保存できる環境かを起動時に確認し、ダメなら警告を出す
+(function(){
+  try{ const k="__shiftapp_test"; localStorage.setItem(k,"1"); localStorage.removeItem(k); }
+  catch(e){ storageOK=false; showStorageWarning(); }
+})();
+initMonthPicker();
+onMonthChange();
+</script>
+</body>
+</html>
