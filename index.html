@@ -1140,6 +1140,8 @@ function seedConsecutive(){
         const slot=md.shift[ds];
         for(const cid in slot){ if((slot[cid]||[]).includes(s.id)){ worked=true; break; } }
       }
+      // 年休も「出勤」扱いで連勤に含める
+      if(!worked && md && md.paidLeave && md.paidLeave.some(x=>x.staffId===s.id&&x.dateStr===ds)) worked=true;
       if(worked) count++; else break;
       d.setDate(d.getDate()-1);
     }
@@ -1291,9 +1293,14 @@ function autoAssign(){
 
     // update counters
     base.staff.forEach(s=>{
+      const onPaid=month.paidLeave.some(x=>x.staffId===s.id&&x.dateStr===ds);
       if(assignedToday[s.id]){
         consec[s.id]=(consec[s.id]||0)+1;
         weekCount[s.id][wk]=(weekCount[s.id][wk]||0)+1;
+        workedSet[s.id].add(ds);
+      }else if(onPaid){
+        // 年休は出勤扱いで連勤カウントを継続（週の契約日数は除く）
+        consec[s.id]=(consec[s.id]||0)+1;
         workedSet[s.id].add(ds);
       }else{
         consec[s.id]=0;
@@ -1325,12 +1332,25 @@ function autoAssign(){
       let have=weekCount[s.id][wk]||0;
       if(have>=contract) return;
       // この週に追加できる候補日
+      // 必要人数1のコースに専任者がすでに入っている場合は、その人以外を入れないためのフィルタ
+      const doableOn=(ds,wd)=>{
+        const all=coursesForDate(ds).filter(cid=>courseById(cid)&&(s.canDoCourses||[]).includes(cid));
+        return all.filter(cid=>{
+          if(requiredCount(wd,cid)!==1) return true;
+          const assigned=(newShift[ds]||{})[cid]||[];
+          const hasSpec=assigned.some(sid=>{
+            const st=staffById(sid);
+            return st && (st.canDoCourses||[]).length===1 && (st.canDoCourses||[])[0]===cid;
+          });
+          return !hasSpec;
+        });
+      };
       let cands=wdates.filter(d=>{
         const ds=dstr(d), wd=d.getDay();
         if(workedSet[s.id].has(ds)) return false;
         if(isBlockedDate(s.id,ds)) return false;            // 休み・年休
         if((s.unavailableDays||[])[wd]) return false;       // 絶対NG
-        const doable=coursesForDate(ds).filter(cid=>courseById(cid)&&(s.canDoCourses||[]).includes(cid));
+        const doable=doableOn(ds,wd);
         if(doable.length===0) return false;                 // 入れるコースが無い日
         if(runLengthIfWork(workedSet[s.id], seed[s.id]||0, startD, d)>(s.maxConsecutive||4)) return false;
         return true;
@@ -1345,10 +1365,10 @@ function autoAssign(){
       });
       for(const d of cands){
         if(have>=contract) break;
-        const ds=dstr(d);
+        const ds=dstr(d), wd=d.getDay();
         if(workedSet[s.id].has(ds)) continue;
         if(runLengthIfWork(workedSet[s.id], seed[s.id]||0, startD, d)>(s.maxConsecutive||4)) continue;
-        const doable=coursesForDate(ds).filter(cid=>courseById(cid)&&(s.canDoCourses||[]).includes(cid));
+        const doable=doableOn(ds,wd);                       // 1人専任埋まりコースを除外
         if(doable.length===0) continue;
         // 入れるコース：必要人数が残っている所を優先、その中で本人の優先順位が高いコース
         const needed=doable.filter(cid=>remNeed[ds]&&remNeed[ds][cid]>0);
