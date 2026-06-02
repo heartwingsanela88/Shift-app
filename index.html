@@ -252,7 +252,7 @@
   <section id="tab-export">
     <div class="card">
       <h2>エクスポート（シフト表）</h2>
-      <div class="help">シフト表をExcelで開けるCSVファイルとしてダウンロードします。○=休み、◎=希望休み、年休=年休、定休=毎月の固定休み。</div>
+      <div class="help">シフト表をExcelで開けるCSVファイルとしてダウンロードします。○=休み、◎=希望休み・定休、年休=年休。</div>
       <button class="btn" id="csvBtn">Excelダウンロード（CSV）</button>
     </div>
     <div class="card">
@@ -331,7 +331,7 @@ function loadBase(){
 function saveBase(){ lsSet(LS_BASE,JSON.stringify(base)); }
 
 function defaultMonth(){
-  return { desiredOff:[], paidLeave:[], irregular:{}, shift:{} };
+  return { desiredOff:[], paidLeave:[], irregular:{}, irregularRequired:{}, shift:{} };
 }
 function monthKey(y,m){ return y+"-"+String(m).padStart(2,"0"); }
 function loadMonth(key){
@@ -1068,6 +1068,13 @@ function coursesForDate(ds){
   const d=parseDstr(ds);
   return (base.weekdayCourses[d.getDay()]||[]).slice();
 }
+// その日付・そのコースの必要人数（特別変更の上書きがあれば優先、なければ曜日の基本値）
+function requiredCountForDate(ds, cid){
+  const ir=month.irregularRequired;
+  if(ir && ir[ds] && Object.prototype.hasOwnProperty.call(ir[ds],cid)) return ir[ds][cid]||0;
+  const d=parseDstr(ds);
+  return (base.requiredStaff[d.getDay()]&&base.requiredStaff[d.getDay()][cid])||0;
+}
 function editIrregular(){
   const dtxt=document.getElementById("irrDate").value.trim();
   const dts=parseDatesFromText(dtxt);
@@ -1076,22 +1083,37 @@ function editIrregular(){
   const d=parseDstr(ds);
   const cur=coursesForDate(ds);
   let html=`<h3>${shortDateLabel(d)} の特別変更</h3>
-    <div class="muted small">この日に動かすコースだけチェック（全部外すと休業）</div><div>`;
+    <div class="muted small">この日だけ、動かすコースと必要人数を変えられます（チェックを全部外すと休業）。</div>
+    <table style="margin:8px 0"><tr><th>動かす</th><th style="text-align:left">コース</th><th>必要人数</th></tr>`;
   base.courses.forEach(c=>{
-    html+=`<label class="inline"><input type="checkbox" class="irrC" data-c="${c.id}" ${cur.includes(c.id)?"checked":""}> ${esc(c.name)}</label>`;
+    const on=cur.includes(c.id);
+    const need=requiredCountForDate(ds,c.id);
+    html+=`<tr>
+      <td style="text-align:center"><input type="checkbox" class="irrC" data-c="${c.id}" ${on?"checked":""}></td>
+      <td style="text-align:left"><span class="swatch" style="background:${c.color}"></span> ${esc(c.name)}</td>
+      <td><input type="number" min="0" class="irrN" data-c="${c.id}" value="${need}" style="width:60px"></td>
+    </tr>`;
   });
-  html+=`</div><div class="row" style="margin-top:10px">
+  html+=`</table><div class="muted small">必要人数は、その日に動かすコース（チェックあり）にだけ効きます。</div>
+    <div class="row" style="margin-top:8px">
     <button class="btn" id="irrSave">保存</button>
     <button class="btn sec" id="irrReset">基本に戻す</button></div>`;
   openModal(html);
   document.getElementById("irrSave").onclick=()=>{
-    const arr=[];
+    const arr=[]; const reqObj={};
     document.querySelectorAll(".irrC").forEach(cb=>{ if(cb.checked) arr.push(cb.dataset.c); });
+    document.querySelectorAll(".irrN").forEach(inp=>{
+      const cid=inp.dataset.c;
+      if(arr.includes(cid)) reqObj[cid]=Math.max(0, +inp.value||0);
+    });
     month.irregular[ds]=arr;
+    month.irregularRequired=month.irregularRequired||{};
+    month.irregularRequired[ds]=reqObj;
     saveMonth(); closeModal(); renderIrrList(); renderShiftGrid();
   };
   document.getElementById("irrReset").onclick=()=>{
     delete month.irregular[ds];
+    if(month.irregularRequired) delete month.irregularRequired[ds];
     saveMonth(); closeModal(); renderIrrList(); renderShiftGrid();
   };
 }
@@ -1101,13 +1123,18 @@ function renderIrrList(){
   wrap.innerHTML=keys.length?"":'<div class="muted small">特別変更はありません。</div>';
   keys.forEach(ds=>{
     const d=parseDstr(ds);
-    const names=month.irregular[ds].map(courseName).join("・")||"（休業）";
+    const names=month.irregular[ds].map(cid=>{
+      const n=month.irregularRequired&&month.irregularRequired[ds]&&month.irregularRequired[ds][cid];
+      return courseName(cid)+(n!=null?`(${n}人)`:"");
+    }).join("・")||"（休業）";
     const div=document.createElement("div");
     div.className="row"; div.style.marginBottom="4px";
     div.innerHTML=`<b>${shortDateLabel(d)}</b> → ${esc(names)}
       <button class="btn warn tiny" data-d="${ds}">取消</button>`;
     div.querySelector("button").onclick=()=>{
-      delete month.irregular[ds]; saveMonth(); renderIrrList(); renderShiftGrid();
+      delete month.irregular[ds];
+      if(month.irregularRequired) delete month.irregularRequired[ds];
+      saveMonth(); renderIrrList(); renderShiftGrid();
     };
     wrap.appendChild(div);
   });
@@ -1203,7 +1230,7 @@ function autoAssign(){
     const ds=dstr(d);
     coursesForDate(ds).filter(cid=>courseById(cid)).forEach(cid=>{
       anyCourse=true;
-      if(((base.requiredStaff[d.getDay()]||{})[cid]||0)>0) anyNeed=true;
+      if(requiredCountForDate(ds,cid)>0) anyNeed=true;
     });
   });
   if(!anyCourse){
@@ -1231,7 +1258,7 @@ function autoAssign(){
     const courses=coursesForDate(ds).filter(cid=>courseById(cid)); // valid only
     const remaining={};
     courses.forEach(cid=>{
-      const need=(base.requiredStaff[wd]&&base.requiredStaff[wd][cid])||0;
+      const need=requiredCountForDate(ds,cid);
       if(need>0) remaining[cid]=need;
     });
     // available staff today (absolute rules, course-doability checked per slot)
@@ -1317,7 +1344,7 @@ function autoAssign(){
   dates.forEach(d=>{
     const ds=dstr(d), wd=d.getDay();
     coursesForDate(ds).filter(cid=>courseById(cid)).forEach(cid=>{
-      const lack=requiredCount(wd,cid)-((newShift[ds]||{})[cid]||[]).length;
+      const lack=requiredCountForDate(ds,cid)-((newShift[ds]||{})[cid]||[]).length;
       if(lack>0){ remNeed[ds]=remNeed[ds]||{}; remNeed[ds][cid]=lack; }
     });
   });
@@ -1336,7 +1363,7 @@ function autoAssign(){
       const doableOn=(ds,wd)=>{
         const all=coursesForDate(ds).filter(cid=>courseById(cid)&&(s.canDoCourses||[]).includes(cid));
         return all.filter(cid=>{
-          if(requiredCount(wd,cid)!==1) return true;
+          if(requiredCountForDate(ds,cid)!==1) return true;
           const assigned=(newShift[ds]||{})[cid]||[];
           const hasSpec=assigned.some(sid=>{
             const st=staffById(sid);
@@ -1398,7 +1425,7 @@ function autoAssign(){
   dates.forEach(d=>{
     const ds=dstr(d);
     coursesForDate(ds).filter(cid=>courseById(cid)).forEach(cid=>{
-      const need=requiredCount(d.getDay(),cid);
+      const need=requiredCountForDate(ds,cid);
       const got=((newShift[ds]||{})[cid]||[]).length;
       filled+=Math.min(got,need);
       if(got<need) shortage+=(need-got);
@@ -1441,6 +1468,17 @@ function renderShiftGrid(){
     html+=`<th class="${cls}">${shortDateLabel(d)}${irr}</th>`;
   });
   html+="</tr>";
+  // 総稼働数（その日に出勤する人数）
+  html+=`<tr><th class="staffcol" style="background:#efe7f7">稼働数</th>`;
+  dates.forEach((d,i)=>{
+    const ds=dstr(d);
+    const slot=month.shift[ds]||{};
+    const set=new Set();
+    for(const cid in slot){ (slot[cid]||[]).forEach(sid=>set.add(sid)); }
+    const sepCls=(d.getDay()===0 && i>0)?'wk-sep':'';
+    html+=`<th class="${sepCls}" style="background:#efe7f7;color:#6b4ea0">${set.size}</th>`;
+  });
+  html+="</tr>";
   base.staff.forEach(s=>{
     const spec=isSpecialist(s)?' <span class="badge">専任</span>':'';
     html+=`<tr><th class="staffcol">${esc(s.name)}${spec}</th>`;
@@ -1456,7 +1494,7 @@ function renderShiftGrid(){
       }else if(month.desiredOff.some(x=>x.staffId===s.id&&x.dateStr===ds)){
         cell='<span class="tag-desired">◎</span>';
       }else if(matchesRecurringOff(s, d)){
-        cell='<span class="tag-teiku">定休</span>';
+        cell='<span class="tag-desired">◎</span>';
       }else{
         cell='<span class="muted">◯</span>';
       }
@@ -1478,7 +1516,7 @@ function renderShiftGrid(){
     const todays=coursesForDate(ds).filter(cid=>courseById(cid));
     const parts=[];
     todays.forEach(cid=>{
-      const need=requiredCount(wd,cid);
+      const need=requiredCountForDate(ds,cid);
       const got=((month.shift[ds]||{})[cid]||[]).length;
       if(got<need) parts.push(`<span class="cell-short" style="padding:1px 7px;border-radius:6px">${esc(courseName(cid))} 不足${need-got}人</span>`);
       else if(need>0&&got>need) parts.push(`<span class="cell-over" style="padding:1px 7px;border-radius:6px">${esc(courseName(cid))} 過剰${got-need}人</span>`);
@@ -1571,7 +1609,7 @@ function exportCSV(){
       if(assignedCourse){ row.push(courseName(assignedCourse)); }
       else if(month.paidLeave.some(x=>x.staffId===s.id&&x.dateStr===ds)){ row.push("年休"); }
       else if(month.desiredOff.some(x=>x.staffId===s.id&&x.dateStr===ds)){ row.push("◎"); }
-      else if(matchesRecurringOff(s,d)){ row.push("定休"); }
+      else if(matchesRecurringOff(s,d)){ row.push("◎"); }
       else { row.push("◯"); }
     });
     rows.push(row);
@@ -1655,10 +1693,10 @@ function importData(file){
 function buildShiftCanvas(){
   const dates=periodDates(curYear,curMonth);
   const SC=2;                 // 解像度2倍（くっきり）
-  const staffW=110, dateW=70, rowH=38, headH=44, titleH=46, pad=12;
+  const staffW=110, dateW=70, rowH=38, headH=44, totalH=30, titleH=46, pad=12;
   const cols=dates.length;
   const W=(staffW + cols*dateW + pad*2);
-  const H=(titleH + headH + base.staff.length*rowH + pad*2);
+  const H=(titleH + headH + totalH + base.staff.length*rowH + pad*2);
   const cv=document.createElement("canvas");
   cv.width=W*SC; cv.height=H*SC;
   const ctx=cv.getContext("2d");
@@ -1682,9 +1720,23 @@ function buildShiftCanvas(){
     ctx.fillText((d.getMonth()+1)+"/"+d.getDate(), x+dateW/2, y0+headH/2-8);
     ctx.fillText("("+WD[wd]+")", x+dateW/2, y0+headH/2+9);
   });
+  // 稼働数行
+  const tY=y0+headH;
+  ctx.fillStyle="#efe7f7"; ctx.fillRect(x0,tY,staffW,totalH);
+  ctx.fillStyle="#6b4ea0"; ctx.font="bold 13px sans-serif"; ctx.textAlign="left";
+  ctx.fillText("稼働数", x0+6, tY+totalH/2);
+  dates.forEach((d,i)=>{
+    const x=x0+staffW+i*dateW, ds=dstr(d);
+    const slot=month.shift[ds]||{}; const set=new Set();
+    for(const cid in slot){ (slot[cid]||[]).forEach(sid=>set.add(sid)); }
+    ctx.fillStyle="#f3edfa"; ctx.fillRect(x,tY,dateW,totalH);
+    ctx.fillStyle="#6b4ea0"; ctx.font="bold 13px sans-serif"; ctx.textAlign="center";
+    ctx.fillText(String(set.size), x+dateW/2, tY+totalH/2);
+  });
   // 各スタッフ行
+  const bodyTop=y0+headH+totalH;
   base.staff.forEach((s,r)=>{
-    const y=y0+headH+r*rowH;
+    const y=bodyTop+r*rowH;
     ctx.fillStyle="#f7f4fb"; ctx.fillRect(x0,y,staffW,rowH);
     ctx.fillStyle="#4a4458"; ctx.font="bold 13px sans-serif"; ctx.textAlign="left";
     ctx.fillText(s.name, x0+6, y+rowH/2);
@@ -1696,7 +1748,7 @@ function buildShiftCanvas(){
       if(ac){ label=courseName(ac); bgC=courseColor(ac); }
       else if(month.paidLeave.some(x=>x.staffId===s.id&&x.dateStr===ds)){ label="年休"; bgC="#cfe0f3"; txtC="#3b5d86"; }
       else if(month.desiredOff.some(x=>x.staffId===s.id&&x.dateStr===ds)){ label="◎"; txtC="#9c3f63"; }
-      else if(matchesRecurringOff(s,d)){ label="定休"; bgC="#e6dcf5"; txtC="#6b4ea0"; }
+      else if(matchesRecurringOff(s,d)){ label="◎"; txtC="#9c3f63"; }
       else { label="◯"; txtC="#aaa3b5"; }
       if(bgC){ ctx.fillStyle=bgC; ctx.globalAlpha=0.5; ctx.fillRect(x,y,dateW,rowH); ctx.globalAlpha=1; }
       ctx.fillStyle=txtC; ctx.font="13px sans-serif"; ctx.textAlign="center";
@@ -1707,9 +1759,10 @@ function buildShiftCanvas(){
   });
   // 罫線
   ctx.strokeStyle="#e0d8e8"; ctx.lineWidth=1;
-  const gridTop=y0, gridBottom=y0+headH+base.staff.length*rowH, gridRight=x0+staffW+cols*dateW;
-  for(let r=0;r<=base.staff.length+1;r++){ const y=y0+(r===0?0:headH+(r-1)*rowH); ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(gridRight,y); ctx.stroke(); }
-  ctx.beginPath(); ctx.moveTo(x0,gridBottom); ctx.lineTo(gridRight,gridBottom); ctx.stroke();
+  const gridTop=y0, gridBottom=bodyTop+base.staff.length*rowH, gridRight=x0+staffW+cols*dateW;
+  const hys=[y0, y0+headH, bodyTop];
+  for(let r=1;r<=base.staff.length;r++) hys.push(bodyTop+r*rowH);
+  hys.forEach(y=>{ ctx.beginPath(); ctx.moveTo(x0,y); ctx.lineTo(gridRight,y); ctx.stroke(); });
   for(let cN=0;cN<=cols;cN++){ const x=x0+staffW+cN*dateW; ctx.beginPath(); ctx.moveTo(x,gridTop); ctx.lineTo(x,gridBottom); ctx.stroke(); }
   ctx.beginPath(); ctx.moveTo(x0,gridTop); ctx.lineTo(x0,gridBottom); ctx.stroke();
   // 土→日の境目に太い赤線
