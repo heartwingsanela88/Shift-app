@@ -6,108 +6,143 @@
 <title>シフト自動作成</title>
 <style>
   :root{
-    --bg:#fdf6f9;
+    /* あかるいピンク＆パープル */
+    --bg:#fbeefb;
+    --bg2:#f0e6fc;
     --card:#ffffff;
-    --accent:#b8a4d4;
-    --accent2:#f7c5d9;
-    --accent3:#aedcd6;
-    --soft:#fbeaf1;
-    --soft2:#eef4fb;
-    --text:#4a4458;
-    --muted:#8a8499;
-    --line:#ece4f0;
-    --short:#f8b4b4;
-    --over:#ffe0a3;
-    --ok:#d9f0db;
+    --accent:#cf72c4;     /* ピンク寄りパープル（メイン） */
+    --accent-deep:#a948a8;/* 見出し・濃いめ */
+    --accent2:#f1c2e6;    /* ブラッシュピンクパープル */
+    --accent3:#a8d8e6;    /* あかるいスカイ */
+    --soft:#f7e1f4;
+    --soft2:#eee4fb;
+    --text:#473f4f;
+    --muted:#9c89a6;
+    --line:#ecd8f0;
+    --short:#f79189;      /* あかるいコーラル（不足） */
+    --over:#fbd089;       /* あかるいゴールド（過剰） */
+    --ok:#bdebc6;
+    --serif:"Hiragino Mincho ProN","YuMincho","Yu Mincho","Noto Serif CJK JP","Noto Serif JP",serif;
+    --shadow:0 6px 18px rgba(150,120,135,.12);
+    --shadow-sm:0 2px 8px rgba(150,120,135,.10);
   }
   *{box-sizing:border-box;}
   body{
     margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
-    background:var(--bg);color:var(--text);font-size:15px;line-height:1.5;
+    background:linear-gradient(160deg,var(--bg),var(--bg2));background-attachment:fixed;min-height:100vh;
+    color:var(--text);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;
   }
   header{
-    background:linear-gradient(120deg,var(--accent2),var(--accent));
-    color:#fff;padding:14px 16px;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.08);
+    background:linear-gradient(125deg,#f185c4 0%,#cf6fce 50%,#a87ae6 100%);
+    color:#fff;padding:15px 18px;position:sticky;top:0;z-index:50;
+    box-shadow:0 4px 18px rgba(170,90,200,.30);
   }
-  header h1{margin:0;font-size:18px;font-weight:700;}
-  .month-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  header h1{
+    margin:0;font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:.06em;
+    text-shadow:0 1px 2px rgba(120,80,110,.25);
+  }
+  .month-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;}
   .month-bar label{font-size:13px;}
   .month-bar select,.month-bar input{
-    border:none;border-radius:8px;padding:6px 8px;font-size:14px;color:var(--text);
+    border:none;border-radius:10px;padding:6px 10px;font-size:14px;color:var(--text);
+    background:rgba(255,255,255,.92);box-shadow:0 1px 3px rgba(120,80,110,.18);
   }
-  .period-label{font-size:13px;background:rgba(255,255,255,.25);padding:4px 10px;border-radius:20px;}
+  .period-label{font-size:13px;background:rgba(255,255,255,.22);padding:5px 12px;border-radius:20px;backdrop-filter:blur(2px);}
   nav{
-    display:flex;gap:6px;overflow-x:auto;padding:10px 12px;background:var(--card);
-    border-bottom:1px solid var(--line);position:sticky;top:96px;z-index:40;-webkit-overflow-scrolling:touch;
+    display:flex;gap:7px;overflow-x:auto;padding:11px 12px;background:rgba(255,253,251,.85);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);position:sticky;top:98px;z-index:40;-webkit-overflow-scrolling:touch;
   }
   nav button{
     flex:0 0 auto;border:none;background:var(--soft);color:var(--text);
-    padding:8px 12px;border-radius:20px;font-size:13px;cursor:pointer;white-space:nowrap;
+    padding:8px 14px;border-radius:22px;font-size:13px;cursor:pointer;white-space:nowrap;
+    transition:transform .15s ease,background .2s ease,box-shadow .2s ease;
   }
-  nav button.active{background:var(--accent);color:#fff;font-weight:700;}
-  main{padding:14px;max-width:1100px;margin:0 auto;}
+  nav button:hover{background:#f3d8f1;}
+  nav button.active{background:linear-gradient(120deg,var(--accent),#a87ae6);color:#fff;font-weight:700;box-shadow:0 3px 10px rgba(170,90,200,.34);}
+  main{padding:16px;max-width:1100px;margin:0 auto;}
   section{display:none;}
-  section.active{display:block;}
+  section.active{display:block;animation:fadeUp .4s ease both;}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
   .card{
-    background:var(--card);border-radius:14px;padding:16px;margin-bottom:14px;
-    box-shadow:0 2px 6px rgba(150,130,170,.08);
+    background:var(--card);border-radius:20px;padding:18px;margin-bottom:16px;
+    box-shadow:var(--shadow);border:1px solid rgba(255,255,255,.6);
+    transition:transform .2s ease,box-shadow .2s ease;
   }
-  .card h2{margin:0 0 12px;font-size:16px;color:var(--accent);}
-  .card h3{margin:14px 0 8px;font-size:14px;color:var(--text);}
+  @media(hover:hover){ .card:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(150,120,135,.16);} }
+  .card h2{
+    margin:0 0 14px;font-family:var(--serif);font-size:17px;font-weight:600;color:var(--accent-deep);
+    letter-spacing:.03em;display:flex;align-items:center;gap:9px;
+  }
+  .card h2::before{content:"";width:7px;height:20px;border-radius:6px;background:linear-gradient(var(--accent),var(--accent2));flex:0 0 auto;}
+  .card h3{margin:15px 0 8px;font-size:14px;font-weight:700;color:var(--text);}
   button.btn{
-    border:none;border-radius:10px;padding:9px 14px;font-size:14px;cursor:pointer;
-    background:var(--accent);color:#fff;font-weight:600;
+    border:none;border-radius:14px;padding:10px 16px;font-size:14px;cursor:pointer;
+    background:linear-gradient(120deg,var(--accent),#a87ae6);color:#fff;font-weight:600;letter-spacing:.02em;
+    box-shadow:0 4px 12px rgba(170,90,200,.30);
+    transition:transform .12s ease,box-shadow .2s ease,filter .2s ease;
   }
-  button.btn.sec{background:var(--soft);color:var(--text);}
-  button.btn.warn{background:var(--accent2);color:#7a3f55;}
-  button.btn.tiny{padding:4px 8px;font-size:12px;border-radius:8px;}
+  button.btn:hover{filter:brightness(1.05);box-shadow:0 6px 16px rgba(170,90,200,.36);}
+  button.btn:active{transform:scale(.96);box-shadow:0 2px 6px rgba(170,90,200,.30);}
+  button.btn.sec{background:var(--soft);color:var(--accent-deep);box-shadow:0 2px 6px rgba(210,150,185,.14);}
+  button.btn.warn{background:linear-gradient(120deg,#e98fc0,#cf72c4);color:#fff;}
+  button.btn.tiny{padding:5px 10px;font-size:12px;border-radius:10px;box-shadow:0 2px 5px rgba(150,110,140,.18);}
   input[type=text],input[type=number],textarea,select{
-    border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-size:14px;
-    font-family:inherit;color:var(--text);background:#fff;
+    border:1px solid var(--line);border-radius:12px;padding:8px 11px;font-size:14px;
+    font-family:inherit;color:var(--text);background:#fffdfc;transition:border-color .2s ease,box-shadow .2s ease;
+  }
+  input[type=text]:focus,input[type=number]:focus,textarea:focus,select:focus{
+    outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(207,114,196,.25);
   }
   textarea{width:100%;min-height:120px;resize:vertical;}
   label.inline{display:inline-flex;align-items:center;gap:4px;margin:2px 8px 2px 0;font-size:13px;}
-  table{border-collapse:collapse;width:100%;font-size:13px;}
-  th,td{border:1px solid var(--line);padding:6px 8px;text-align:center;}
-  th{background:var(--soft2);font-weight:600;}
+  table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(150,120,135,.08);}
+  th,td{border:1px solid var(--line);padding:7px 8px;text-align:center;}
+  th{background:var(--soft2);font-weight:700;color:var(--accent-deep);}
   .scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch;}
   .shift-matrix td,.shift-matrix th{min-width:62px;white-space:nowrap;}
   .shift-matrix th.staffcol{position:sticky;left:0;z-index:3;background:var(--soft2);min-width:96px;text-align:left;}
-  .shift-matrix th.wk-sep, .shift-matrix td.wk-sep{ border-left:3px solid #d05a7a; }
+  .shift-matrix th.wk-sep, .shift-matrix td.wk-sep{ border-left:3px solid #c4607f; }
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;}
   .pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:12px;color:#fff;}
   .list-item{
-    border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#fff;
+    border:1px solid var(--line);border-radius:14px;padding:11px 13px;margin-bottom:9px;background:#fffdfc;
+    box-shadow:0 1px 4px rgba(150,120,135,.07);transition:box-shadow .2s ease,transform .15s ease;
   }
+  @media(hover:hover){ .list-item:hover{box-shadow:0 4px 12px rgba(150,120,135,.13);} }
   .list-item .li-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;}
   .grid2{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px;}
   .weekday-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;}
   .muted{color:var(--muted);font-size:13px;}
   .small{font-size:12px;}
-  .tag-off{background:#cfe8d4;color:#356b41;padding:1px 6px;border-radius:8px;font-size:11px;}
-  .tag-desired{background:#f6d2e0;color:#9c3f63;padding:1px 6px;border-radius:8px;font-size:11px;}
-  .tag-paid{background:#cfe0f3;color:#3b5d86;padding:1px 6px;border-radius:8px;font-size:11px;}
-  .tag-teiku{background:#e6dcf5;color:#6b4ea0;padding:1px 6px;border-radius:8px;font-size:11px;}
+  .tag-off{background:#d2e3d4;color:#3f6b49;padding:2px 8px;border-radius:10px;font-size:11px;}
+  .tag-desired{background:#eccdd7;color:#965072;padding:2px 8px;border-radius:10px;font-size:11px;}
+  .tag-paid{background:#cfdcec;color:#41597f;padding:2px 8px;border-radius:10px;font-size:11px;}
+  .tag-teiku{background:#e0d6ee;color:#6b4ea0;padding:2px 8px;border-radius:10px;font-size:11px;}
   .cell-short{background:var(--short)!important;}
   .cell-over{background:var(--over)!important;}
   .cell-ok{}
-  .slot-staff{display:inline-block;background:rgba(255,255,255,.7);border-radius:6px;padding:1px 5px;margin:1px;font-size:12px;}
-  .priority-row{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin-bottom:4px;background:var(--soft2);}
+  .slot-staff{display:inline-block;background:rgba(255,255,255,.7);border-radius:7px;padding:1px 5px;margin:1px;font-size:12px;}
+  .priority-row{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:11px;padding:5px 9px;margin-bottom:5px;background:var(--soft2);}
   .priority-row .pname{flex:1;}
-  .dayhdr-sun{color:#d05a7a;}
-  .dayhdr-sat{color:#5a7fd0;}
-  .modal-bg{position:fixed;inset:0;background:rgba(60,50,70,.4);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:20px;overflow:auto;}
-  .modal-bg.show{display:flex;}
-  .modal{background:#fff;border-radius:14px;padding:18px;max-width:520px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.2);}
-  .modal h3{margin-top:0;}
-  .close-x{float:right;cursor:pointer;color:var(--muted);font-size:20px;line-height:1;}
-  .swatch{width:22px;height:22px;border-radius:6px;display:inline-block;vertical-align:middle;border:1px solid rgba(0,0,0,.1);}
-  .help{background:var(--soft);border-radius:10px;padding:10px;font-size:13px;color:var(--muted);margin-bottom:10px;}
-  .badge{display:inline-block;background:var(--accent3);color:#236158;border-radius:8px;padding:1px 7px;font-size:11px;margin-left:6px;}
+  .dayhdr-sun{color:#c4607f;}
+  .dayhdr-sat{color:#6f86b0;}
+  .modal-bg{position:fixed;inset:0;background:rgba(70,55,65,.42);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:20px;overflow:auto;backdrop-filter:blur(3px);}
+  .modal-bg.show{display:flex;animation:fadeUp .25s ease both;}
+  .modal{background:var(--card);border-radius:22px;padding:20px;max-width:520px;width:100%;box-shadow:0 18px 50px rgba(80,60,75,.32);}
+  .modal h3{margin-top:0;font-family:var(--serif);font-weight:600;color:var(--accent-deep);letter-spacing:.02em;}
+  .close-x{float:right;cursor:pointer;color:var(--muted);font-size:22px;line-height:1;transition:color .2s ease,transform .2s ease;}
+  .close-x:hover{color:var(--accent);transform:rotate(90deg);}
+  .swatch{width:22px;height:22px;border-radius:7px;display:inline-block;vertical-align:middle;border:1px solid rgba(0,0,0,.08);box-shadow:0 1px 2px rgba(0,0,0,.08);}
+  .help{background:linear-gradient(120deg,var(--soft),#f4e9ee);border-radius:13px;padding:11px 13px;font-size:13px;color:#8a7d86;margin-bottom:11px;}
+  .badge{display:inline-block;background:var(--accent3);color:#33543f;border-radius:9px;padding:1px 8px;font-size:11px;margin-left:6px;}
   @media(max-width:600px){
-    nav{top:104px;}
-    main{padding:10px;}
-    .card{padding:12px;}
+    nav{top:106px;}
+    main{padding:11px;}
+    .card{padding:14px;border-radius:17px;}
+    header h1{font-size:19px;}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important;}
   }
 </style>
 </head>
@@ -225,7 +260,7 @@
         <button class="btn" id="autoGenBtn">自動でシフトを作る</button>
         <button class="btn warn" id="clearShiftBtn">この月のシフトを消す</button>
       </div>
-      <div class="muted small">※自動作成は絶対ルール（希望休み・年休・絶対NGの曜日・できないコース・連勤上限）を必ず守ります。その範囲で各スタッフの「週の契約日数」を必ず満たすように出します（必要人数を超える日は「過剰」と表示）。条件的に満たせない枠・日数は無理に埋めず残します。</div>
+      <div class="muted small">※自動作成は絶対ルール（希望休み・年休・絶対NGの曜日・できないコース・連勤上限）を必ず守ります。その範囲で各スタッフの「週の契約日数」を必ず満たすように出します（年休もその週の契約日数に算入します）。最後に自動の入れ替え調整を行い、不足・過剰をできるだけ減らします。条件的に満たせない枠・日数は無理に埋めず残します。</div>
     </div>
     <div class="card">
       <h2>特別変更（特定日のコース変更）</h2>
@@ -736,7 +771,7 @@ function editStaff(id){
     <h3>コース優先順位（高い順）</h3>
     <div id="esPriority"></div>
     <h3>契約日数・連勤上限</h3>
-    <div class="muted small">週の契約日数＝毎週この日数だけ必ず出します（必要人数より多くてもOK）。0にすると「指定なし（足りない所を埋める調整役）」になります。</div>
+    <div class="muted small">週の契約日数＝毎週この日数だけ必ず出します（必要人数より多くてもOK）。年休を取った週は、年休も出勤1日分として数えます。0にすると「指定なし（足りない所を埋める調整役）」になります。</div>
     <div class="row" style="margin-top:6px">
       <label>週の契約日数 <input type="number" id="esWeek" min="0" max="7" value="${s.maxDaysPerWeek||0}" style="width:70px"></label>
       <label>連勤上限 <input type="number" id="esConsec" min="1" max="14" value="${s.maxConsecutive||4}" style="width:70px"></label>
@@ -1251,6 +1286,19 @@ function autoAssign(){
   const workedSet={};                        // staffId -> Set(dateStr)
   base.staff.forEach(s=>{ weekCount[s.id]={}; totalAssigned[s.id]=0; workedSet[s.id]=new Set(); });
 
+  // 週ごとの日付一覧
+  const weeksMap={};
+  dates.forEach(d=>{ const wk=weekKey(d); (weeksMap[wk]=weeksMap[wk]||[]).push(d); });
+  // 実効契約日数 = 契約日数 − その週の年休日数（年休は出勤した日として契約に算入）
+  const effC={};
+  base.staff.forEach(s=>{ effC[s.id]={};
+    for(const wk in weeksMap){
+      const c=s.maxDaysPerWeek||0;
+      const paid=weeksMap[wk].filter(d=>month.paidLeave.some(x=>x.staffId===s.id&&x.dateStr===dstr(d))).length;
+      effC[s.id][wk]= c>0 ? Math.max(0, c-paid) : 0;
+    }
+  });
+
   dates.forEach(d=>{
     const ds=dstr(d);
     const wd=d.getDay();
@@ -1267,7 +1315,7 @@ function autoAssign(){
       if(isBlockedDate(s.id,ds)) return false;                 // a. desired/paid off
       if((s.unavailableDays||[])[wd]) return false;            // b. unavailable weekday
       const wc=(weekCount[s.id][wk]||0)+1;
-      if(s.maxDaysPerWeek>0 && wc>s.maxDaysPerWeek) return false; // d. week limit
+      if(s.maxDaysPerWeek>0 && wc>effC[s.id][wk]) return false;   // d. 実効契約日数（年休を算入）
       const maxC=s.maxConsecutive||4;
       if((consec[s.id]||0)+1>maxC) return false;               // e. consecutive limit
       return true;
@@ -1300,9 +1348,9 @@ function autoAssign(){
               score=courseStaffRank(cid,s.id)*1000 + own;
             }
             // 過不足を減らす微調整：契約日数まで届いていない人を優先、出勤の偏りも均す
-            const contract=s.maxDaysPerWeek||0;
+            const cap=(s.maxDaysPerWeek||0)>0?effC[s.id][wk]:0;
             const wc=weekCount[s.id][wk]||0;
-            const deficit=Math.max(0, contract-wc);
+            const deficit=Math.max(0, cap-wc);
             const adj=score + deficit*0.1 - totalAssigned[s.id]*0.001;
             if(adj>bestScore){ bestScore=adj; best={sid:s.id,cid}; }
           }
@@ -1348,16 +1396,14 @@ function autoAssign(){
       if(lack>0){ remNeed[ds]=remNeed[ds]||{}; remNeed[ds][cid]=lack; }
     });
   });
-  // 週ごとにまとめる
-  const weeks={};
-  dates.forEach(d=>{ const wk=weekKey(d); (weeks[wk]=weeks[wk]||[]).push(d); });
-  Object.keys(weeks).sort().forEach(wk=>{
-    const wdates=weeks[wk];
+  Object.keys(weeksMap).sort().forEach(wk=>{
+    const wdates=weeksMap[wk];
     base.staff.forEach(s=>{
       const contract=s.maxDaysPerWeek||0;
       if(contract<=0) return;                       // 0=契約日数の指定なし
+      const target=effC[s.id][wk];                  // 年休を算入した実効契約日数
       let have=weekCount[s.id][wk]||0;
-      if(have>=contract) return;
+      if(have>=target) return;
       // この週に追加できる候補日
       // 必要人数1のコースに専任者がすでに入っている場合は、その人以外を入れないためのフィルタ
       const doableOn=(ds,wd)=>{
@@ -1391,7 +1437,7 @@ function autoAssign(){
         return 0;
       });
       for(const d of cands){
-        if(have>=contract) break;
+        if(have>=target) break;
         const ds=dstr(d), wd=d.getDay();
         if(workedSet[s.id].has(ds)) continue;
         if(runLengthIfWork(workedSet[s.id], seed[s.id]||0, startD, d)>(s.maxConsecutive||4)) continue;
@@ -1404,7 +1450,10 @@ function autoAssign(){
         pool.forEach(cid=>{
           const idx=(s.coursePriority||[]).indexOf(cid);
           const rank=idx<0?0:((s.coursePriority||[]).length-idx);
-          if(!pick||rank>pick.rank) pick={cid,rank};
+          // 過剰を置く場合は、過剰幅が一番小さいコースに置く（偏らせない）
+          const over=((newShift[ds]||{})[cid]||[]).length - requiredCountForDate(ds,cid);
+          const sc=needed.length ? rank : (-over*100 + rank);
+          if(!pick||sc>pick.sc) pick={cid,sc};
         });
         const cid=pick.cid;
         newShift[ds]=newShift[ds]||{}; newShift[ds][cid]=newShift[ds][cid]||[]; newShift[ds][cid].push(s.id);
@@ -1416,6 +1465,92 @@ function autoAssign(){
       }
     });
   });
+
+  // ===== phase3: 入れ替え最適化 =====
+  //  残った「不足」を、(c)直接追加 → (a)同日のコース切替 → (b)同週内の過剰日からの移動 で埋める。
+  //  絶対ルール（休み・年休・定休・絶対NG・できないコース・連勤上限・実効契約日数）は必ず守る。
+  //  外す側は「外しても不足にならない枠」だけ。固定担当はその枠から外さない。
+  (function repairPass(){
+    const slotGot=(ds,cid)=>((newShift[ds]||{})[cid]||[]).length;
+    const removeFrom=(ds,cid,sid)=>{ newShift[ds][cid]=newShift[ds][cid].filter(x=>x!==sid); };
+    const addTo=(ds,cid,sid)=>{ newShift[ds]=newShift[ds]||{}; newShift[ds][cid]=newShift[ds][cid]||[]; newShift[ds][cid].push(sid); };
+    const isFixedFor=(s,wd,cid)=>{ const c=courseById(cid); return !!(c&&c.fixedByWeekday&&(c.fixedByWeekday[wd]||[]).includes(s.id)); };
+    const eligibleBase=(s,ds,wd,cid)=>{
+      if(isBlockedDate(s.id,ds)) return false;
+      if((s.unavailableDays||[])[wd]) return false;
+      if(!(s.canDoCourses||[]).includes(cid)) return false;
+      return true;
+    };
+    let guard=0, changed=true;
+    while(changed && guard++<400){
+      changed=false;
+      for(const d of dates){
+        const ds=dstr(d), wd=d.getDay(), wk=weekKey(d);
+        const todays=coursesForDate(ds).filter(cid=>courseById(cid));
+        for(const cid of todays){
+          let lack=requiredCountForDate(ds,cid)-slotGot(ds,cid);
+          while(lack>0){
+            let done=false;
+            // 候補順：基本NGでない人を先に、コース側の優先順位が高い人から
+            const orderStaff=[...base.staff].sort((a,b)=>{
+              const as=(a.softUnavailableDays||[])[wd]?1:0, bs=(b.softUnavailableDays||[])[wd]?1:0;
+              if(as!==bs) return as-bs;
+              return courseStaffRank(cid,b.id)-courseStaffRank(cid,a.id);
+            });
+            // (c) 直接追加：契約0は自由、契約ありは実効契約まで
+            for(const s of orderStaff){
+              if(workedSet[s.id].has(ds)) continue;
+              if(!eligibleBase(s,ds,wd,cid)) continue;
+              const wc=weekCount[s.id][wk]||0;
+              if((s.maxDaysPerWeek||0)>0 && wc+1>effC[s.id][wk]) continue;
+              if(runLengthIfWork(workedSet[s.id],seed[s.id]||0,startD,d)>(s.maxConsecutive||4)) continue;
+              addTo(ds,cid,s.id); workedSet[s.id].add(ds);
+              weekCount[s.id][wk]=wc+1; totalAssigned[s.id]++;
+              done=true; break;
+            }
+            // (a) 同日コース切替：過剰なコースから不足コースへ（その日のうちに持ち替え）
+            if(!done){
+              for(const s of orderStaff){
+                if(!workedSet[s.id].has(ds)) continue;
+                let cur=null; const slot=newShift[ds]||{};
+                for(const c2 in slot){ if((slot[c2]||[]).includes(s.id)){ cur=c2; break; } }
+                if(!cur||cur===cid) continue;                                   // 年休等は cur=null → 対象外
+                if(!(s.canDoCourses||[]).includes(cid)) continue;
+                if((s.unavailableDays||[])[wd]) continue;
+                if(slotGot(ds,cur)-1 < requiredCountForDate(ds,cur)) continue;  // 切替元が不足にならない
+                if(isFixedFor(s,wd,cur)) continue;                              // 固定担当は外さない
+                removeFrom(ds,cur,s.id); addTo(ds,cid,s.id);
+                done=true; break;
+              }
+            }
+            // (b) 同週内で「外しても不足にならない日」からこの日へ移動
+            if(!done){
+              outer:
+              for(const s of orderStaff){
+                if(workedSet[s.id].has(ds)) continue;
+                if(!eligibleBase(s,ds,wd,cid)) continue;
+                for(const d2 of (weeksMap[wk]||[])){
+                  const ds2=dstr(d2); if(ds2===ds) continue;
+                  const slot2=newShift[ds2]||{};
+                  let cur=null; for(const c2 in slot2){ if((slot2[c2]||[]).includes(s.id)){ cur=c2; break; } }
+                  if(!cur) continue;
+                  if(slotGot(ds2,cur)-1 < requiredCountForDate(ds2,cur)) continue; // 外すと不足になる日は不可
+                  if(isFixedFor(s,d2.getDay(),cur)) continue;
+                  const tmp=new Set(workedSet[s.id]); tmp.delete(ds2);             // 連勤を移動後の形で判定
+                  if(runLengthIfWork(tmp,seed[s.id]||0,startD,d)>(s.maxConsecutive||4)) continue;
+                  removeFrom(ds2,cur,s.id); workedSet[s.id].delete(ds2);
+                  addTo(ds,cid,s.id); workedSet[s.id].add(ds);
+                  done=true; break outer;
+                }
+              }
+            }
+            if(done){ changed=true; lack=requiredCountForDate(ds,cid)-slotGot(ds,cid); }
+            else break;
+          }
+        }
+      }
+    }
+  })();
 
   month.shift=newShift;
   saveMonth();
@@ -1437,7 +1572,7 @@ function autoAssign(){
   let contractShort=0;
   base.staff.forEach(s=>{ const c=s.maxDaysPerWeek||0; if(c<=0) return;
     weekList.forEach(wk=>{ const wdates=dates.filter(d=>weekKey(d)===wk);
-      const target=Math.min(c, feasibleDaysInWeek(s,wdates));
+      const target=Math.min(effC[s.id][wk], feasibleDaysInWeek(s,wdates));   // 年休を算入
       const got=wcFinal[s.id][wk]||0;
       if(got<target) contractShort+=(target-got);
     });
@@ -1533,12 +1668,15 @@ function renderShiftGrid(){
     const c=s.maxDaysPerWeek||0; if(c<=0) return;
     weekKeys.forEach(wk=>{
       const wdates=dates.filter(d=>weekKey(d)===wk);
-      const target=Math.min(c, feasibleDaysInWeek(s,wdates));
+      // 年休はその週の契約日数に「出勤した日」として算入する
+      const paid=wdates.filter(d=>month.paidLeave.some(x=>x.staffId===s.id&&x.dateStr===dstr(d))).length;
+      const target=Math.min(Math.max(0,c-paid), feasibleDaysInWeek(s,wdates));
       const got=wc[s.id][wk]||0;
       if(got<target){
         const a=wdates[0], b=wdates[wdates.length-1];
         const lab=(a.getMonth()+1)+"/"+a.getDate()+"〜"+(b.getMonth()+1)+"/"+b.getDate();
-        cIssues+=`<div style="margin:3px 0"><b>${esc(s.name)}</b> <span class="muted">${lab}の週</span> 契約${c}日に対して<b>${got}日</b></div>`;
+        const paidNote=paid>0?`（年休${paid}日を含む）`:"";
+        cIssues+=`<div style="margin:3px 0"><b>${esc(s.name)}</b> <span class="muted">${lab}の週</span> 契約${c}日${paidNote}に対して 出勤<b>${got}日</b></div>`;
       }
     });
   });
